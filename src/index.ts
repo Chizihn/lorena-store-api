@@ -4,7 +4,7 @@ import cors from "cors";
 import { config } from "./config/app.config";
 import { connectDatabase } from "./config/database.config";
 import { errorHandler } from "./middlewares/errorHandler.middleware";
-import authRoutes from "../src/routes/auth.routes";
+import authRoutes from "./routes/auth.routes";
 import productRoutes from "./routes/product.routes";
 import categoryRoutes from "./routes/category.routes";
 import subcategoryRoutes from "./routes/subcategory.routes";

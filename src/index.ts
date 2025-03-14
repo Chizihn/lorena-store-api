@@ -11,32 +11,47 @@ import subcategoryRoutes from "./routes/subcategory.routes";
 import userRoutes from "./routes/user.route";
 
 const app = express();
-const BASE_PATH =
+const BASE_PATH = config.BASE_PATH;
+
+const origin =
   config.NODE_ENV === "development"
-    ? config.BASE_PATH_DEV
-    : config.BASE_PATH_PROD;
+    ? "http://localhost:3000"
+    : config.FRONTEND_ORIGIN;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     credentials: true,
-    origin: config.FRONTEND_ORIGIN,
+    origin: origin,
   })
 );
+
 app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}`, productRoutes);
 app.use(`${BASE_PATH}`, categoryRoutes);
 app.use(`${BASE_PATH}`, subcategoryRoutes);
 app.use(`${BASE_PATH}`, userRoutes);
 
-app.use(errorHandler);
+console.log("base", BASE_PATH);
+console.log("frontend origin", origin);
 
 app.get("/", (req: Request, res: Response, next: NextFunction) => {
   res.send("Hello World!");
 });
 
-app.listen(config.PORT, async () => {
-  connectDatabase();
-  console.log(`Server is running on port ${config.PORT}`);
-});
+app.use(errorHandler);
+
+const startServer = async () => {
+  try {
+    await connectDatabase(); // Connect to DB first
+    app.listen(config.PORT, () => {
+      console.log(`Server is running on port ${config.PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to connect to database", err);
+    process.exit(1); // Exit if DB connection fails
+  }
+};
+
+startServer();

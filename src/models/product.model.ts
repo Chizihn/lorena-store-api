@@ -97,6 +97,7 @@ const productSchema = new Schema<ProductDocument>(
     slug: {
       type: String,
       unique: true,
+      index: true,
     },
   },
   { timestamps: true }
@@ -135,7 +136,7 @@ productSchema.pre("save", function (next) {
 
 // Index for improved search performance
 productSchema.index({ name: "text", description: "text", tags: "text" });
-productSchema.index({ slug: 1 });
+// productSchema.index({ slug: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ isOnSale: 1, isFeatured: 1, isProductNew: 1 }); // Adjusted here as well
 

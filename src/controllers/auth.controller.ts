@@ -9,7 +9,6 @@ import {
   CreateAccountSchema,
   LoginSchema,
   ResetPasswordSchema,
-  UpdateProfileSchema,
   VerifyEmailSchema,
 } from "../validators/auth.validator";
 import { HTTPSTATUS } from "../config/http.config";
@@ -20,10 +19,11 @@ import {
   generateToken,
 } from "../utils/token";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
-import { AuthenticatedRequest } from "../@types/custom.type";
 import { compareValue, hashValue } from "../utils/bcrypt";
 import { sendEmail } from "../utils/sendEmail";
 import { ZodError } from "zod";
+import AccountModel from "../models/account.model";
+import { ProviderEnum } from "../enums/account-provider.enum";
 
 export const createAccountHandler = async (
   req: Request,
@@ -55,6 +55,12 @@ export const createAccountHandler = async (
       emailVerificationTokenExpires: emailVerifyTokenExpires,
     });
 
+    const newAccount = await AccountModel.create({
+      userId: newUser._id,
+      provider: ProviderEnum.EMAIL,
+      providerId: newUser.email,
+    });
+
     const token = generateToken(newUser.id as string, res);
 
     await newUser.save();
@@ -71,6 +77,7 @@ export const createAccountHandler = async (
       message: "User account created successfully",
       token,
       user: newUser,
+      acount: newAccount,
     });
   } catch (error) {
     if (error instanceof ZodError) {
@@ -94,8 +101,20 @@ export const loginHandler = async (
       email: validatedData.email,
     });
 
+    const existingAccount = await AccountModel.findOne({
+      provider: ProviderEnum.EMAIL,
+      providerId: validatedData?.email,
+    });
+
     if (!existingUser) {
       throw new NotFoundException("No such user", ErrorCodeEnum.AUTH_NOT_FOUND);
+    }
+
+    if (!existingAccount) {
+      throw new NotFoundException(
+        "No account with this user",
+        ErrorCodeEnum.AUTH_NOT_FOUND
+      );
     }
 
     const isPasswordCorrect = await compareValue(
@@ -113,9 +132,12 @@ export const loginHandler = async (
     const token = generateToken(existingUser._id as string, res);
     console.log("token", token);
 
-    return res
-      .status(200)
-      .json({ message: "Login successful", token, user: existingUser });
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      user: existingUser,
+      account: existingAccount,
+    });
   } catch (error) {
     if (error instanceof ZodError) {
       next(new ZodValidationException(error));
@@ -470,58 +492,6 @@ export const resendResetPasswordToken = async (
           "No existing token found. A new token has been sent to your email.",
       });
     }
-  } catch (error) {
-    if (error instanceof ZodError) {
-      next(new ZodValidationException(error));
-      return;
-    }
-
-    next(error);
-  }
-};
-
-export const updateProfileHandler = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    // Parse and validate the request body
-    const validatedData = UpdateProfileSchema.parse(req.body);
-
-    // Get the user ID from the authenticated request
-    const userId = req.user?._id;
-
-    // If user ID is not available, respond with unauthorized error
-    if (!userId) {
-      return res.status(HTTPSTATUS.UNAUTHORIZED).json({
-        message: "User not authenticated",
-      });
-    }
-
-    // Find the user by ID
-    const user = await UserModel.findById(userId);
-
-    // If the user is not found, return a not found error
-    if (!user) {
-      return res
-        .status(HTTPSTATUS.NOT_FOUND)
-        .json({ message: ErrorCodeEnum.AUTH_USER_NOT_FOUND });
-    }
-
-    // Log the validated data to check what is being updated
-    console.log("Validated data:", validatedData);
-
-    // Update the user object with the new data
-    Object.assign(user, validatedData);
-
-    // Save the updated user profile
-    await user.save();
-
-    // Return success response
-    return res.status(HTTPSTATUS.OK).json({
-      message: "User profile updated successfully",
-    });
   } catch (error) {
     if (error instanceof ZodError) {
       next(new ZodValidationException(error));

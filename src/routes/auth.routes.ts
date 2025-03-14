@@ -5,12 +5,9 @@ import {
   forgotPasswordHandler,
   loginHandler,
   resetPasswordHandler,
-  updateProfileHandler,
+  verifyEmailHandler,
 } from "../controllers/auth.controller";
-import {
-  adminMiddleware,
-  authMiddleware,
-} from "../middlewares/auth.middleware";
+
 
 const router = express.Router();
 
@@ -18,15 +15,13 @@ router.post("/create-account", asyncHandler(createAccountHandler));
 
 router.post("/login", asyncHandler(loginHandler));
 
+router.post("/verify-email", asyncHandler(verifyEmailHandler));
+
+
 router.post("/forgot-password", asyncHandler(forgotPasswordHandler));
 
 router.post("/reset-password", asyncHandler(resetPasswordHandler));
 
-router.put(
-  "/users/:id/update-profile",
-  authMiddleware,
-  adminMiddleware,
-  asyncHandler(updateProfileHandler)
-);
+
 
 export default router;

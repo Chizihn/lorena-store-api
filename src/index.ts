@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.routes";
 import productRoutes from "./routes/product.routes";
 import categoryRoutes from "./routes/category.routes";
 import subcategoryRoutes from "./routes/subcategory.routes";
+import userRoutes from "./routes/user.route";
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -24,6 +25,7 @@ app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}`, productRoutes);
 app.use(`${BASE_PATH}`, categoryRoutes);
 app.use(`${BASE_PATH}`, subcategoryRoutes);
+app.use(`${BASE_PATH}`, userRoutes);
 
 app.use(errorHandler);
 

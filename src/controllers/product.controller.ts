@@ -16,7 +16,8 @@ export const getAllProducts = async (
   next: NextFunction
 ) => {
   try {
-    const products = await ProductModel.find().lean();
+    // Populate the category field with full  data
+    const products = await ProductModel.find().populate("category").lean();
 
     if (products.length === 0) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
@@ -25,11 +26,10 @@ export const getAllProducts = async (
       });
     }
 
-    return res.status(HTTPSTATUS.OK).json(products);
+    return res.status(HTTPSTATUS.OK).json(products); // Send the populated products back to the client
   } catch (error) {
     console.error(error); // Log the error for debugging purposes
-
-    next(error);
+    next(error); // Pass the error to the next middleware
   }
 };
 
@@ -39,7 +39,9 @@ export const getSingleProduct = async (
   next: NextFunction
 ) => {
   try {
-    const product = await ProductModel.findById(req.params.id).lean();
+    const product = await ProductModel.findById(req.params.id)
+      .populate("category")
+      .lean();
 
     if (!product) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
@@ -51,6 +53,42 @@ export const getSingleProduct = async (
     return res.status(HTTPSTATUS.OK).json(product);
   } catch (error) {
     next(error);
+  }
+};
+
+export const getProductBySlug = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { slug } = req.params;
+
+  // Basic validation for slug
+  if (!slug || typeof slug !== "string" || slug.trim() === "") {
+    return res.status(HTTPSTATUS.BAD_REQUEST).json({
+      error: "Invalid slug provided",
+      errorCode: ErrorCodeEnum.INVALID_SLUG,
+    });
+  }
+
+  try {
+    // Find product by slug
+    const product = await ProductModel.findOne({ slug: slug })
+      .populate("category")
+      .lean();
+
+    if (!product) {
+      return res.status(HTTPSTATUS.NOT_FOUND).json({
+        error: "Product not found",
+        errorCode: ErrorCodeEnum.PRODUCT_NOT_FOUND,
+      });
+    }
+
+    // Return the product if found
+    return res.status(HTTPSTATUS.OK).json(product);
+  } catch (error) {
+    console.error("Error fetching product by slug:", error);
+    next(error); // Forward to the global error handler
   }
 };
 

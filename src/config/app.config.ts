@@ -7,7 +7,9 @@ const appConfig = () => ({
   JWT_SECRET: getEnv("JWT_SECRET", "mysecret"),
   JWT_EXPIRES_IN: getEnv("JWT_EXPIRES_IN", "1d"),
 
-  BASE_PATH: getEnv("BASE_PATH", "/api"),
+  BASE_PATH_DEV: getEnv("BASE_PATH_DEV"),
+  BASE_PATH_PROD: getEnv("BASE_PATH_PROD"),
+
   FRONTEND_ORIGIN: getEnv("FRONTEND_ORIGIN", "http://localhost:3000"),
 
   SMTP: {

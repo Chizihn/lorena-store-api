@@ -11,7 +11,10 @@ import subcategoryRoutes from "./routes/subcategory.routes";
 import userRoutes from "./routes/user.route";
 
 const app = express();
-const BASE_PATH = config.BASE_PATH;
+const BASE_PATH =
+  config.NODE_ENV === "development"
+    ? config.BASE_PATH_DEV
+    : config.BASE_PATH_PROD;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

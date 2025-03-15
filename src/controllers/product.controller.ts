@@ -9,6 +9,7 @@ import Subcategory from "../models/subcategory.model";
 import UserModel from "../models/user.model";
 import { AuthenticatedRequest } from "../@types/custom.type";
 import { Types } from "mongoose";
+import WishlistModel from "../models/wishlist.model";
 
 export const getAllProducts = async (
   req: Request,
@@ -17,7 +18,7 @@ export const getAllProducts = async (
 ) => {
   try {
     // Populate the category field with full  data
-    const products = await ProductModel.find().populate("category").lean();
+    const products = await ProductModel.find().populate("category");
 
     if (products.length === 0) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
@@ -39,10 +40,9 @@ export const getSingleProduct = async (
   next: NextFunction
 ) => {
   try {
-    const product = await ProductModel.findById(req.params.id)
-      .populate("category")
-      .lean();
-
+    const product = await ProductModel.findById(req.params.id).populate(
+      "category"
+    );
     if (!product) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
         error: "Product not found",
@@ -73,10 +73,9 @@ export const getProductBySlug = async (
 
   try {
     // Find product by slug
-    const product = await ProductModel.findOne({ slug: slug })
-      .populate("category")
-      .lean();
-
+    const product = await ProductModel.findOne({ slug: slug }).populate(
+      "category"
+    );
     if (!product) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
         error: "Product not found",
@@ -147,30 +146,201 @@ export const addProduct = async (
   }
 };
 
+export const getWishlist = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = req.user?._id;
+
+  try {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException(
+        "User does not exist",
+        ErrorCodeEnum.AUTH_USER_NOT_FOUND
+      );
+    }
+
+    // Check if user has a wishlist reference
+    let wishlist = null;
+
+    if (user.wishlist) {
+      // Find wishlist by its _id (not by a field called "wishlist")
+      wishlist = await WishlistModel.findById(user.wishlist).populate(
+        "products"
+      );
+    }
+
+    if (!wishlist) {
+      // Create new wishlist if not exists
+      wishlist = await WishlistModel.create({
+        userId: userId,
+        products: [],
+      });
+      await wishlist.save();
+
+      // Update user reference to wishlist
+      user.wishlist = wishlist._id as Types.ObjectId;
+      await user.save();
+    }
+
+    if (wishlist.products?.length === 0) {
+      return res.status(HTTPSTATUS.OK).json({
+        wishlist: wishlist,
+      });
+    }
+
+    res.status(HTTPSTATUS.OK).json({
+      wishlist: {
+        id: wishlist._id,
+        products: wishlist.products,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// export const addToWishList = async (
+//   req: AuthenticatedRequest,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   const userId = req.user?._id;
+//   const productId = req.params.id;
+
+//   try {
+//     // Find user first
+//     const user = await UserModel.findById(userId);
+//     if (!user) {
+//       throw new NotFoundException(
+//         "User does not exist",
+//         ErrorCodeEnum.AUTH_USER_NOT_FOUND
+//       );
+//     }
+
+//     // Find or create wishlist - make sure to use userId consistently
+//     let wishlist = await WishlistModel.findOneAndUpdate(
+//       { userId: userId }, // Changed from user to userId to match schema
+//       { userId: userId }, // Changed from user to userId to match schema
+//       { upsert: true, new: true, setDefaultsOnInsert: true }
+//     );
+
+//     let wishlistId;
+
+//     wishlistId = new Types.ObjectId(wishlist._id as string);
+
+//     // Update user with wishlist reference if needed
+//     if (!user.wishlist || !user.wishlist.equals(wishlistId)) {
+//       user.wishlist = wishlist._id as Types.ObjectId;
+//       await user.save();
+//     }
+
+//     const productObjectId = new Types.ObjectId(productId);
+
+//     // Check if product already exists in wishlist
+//     const productExists = wishlist.products.some((id) =>
+//       id.equals(productObjectId)
+//     );
+//     if (productExists) {
+//       return res.status(HTTPSTATUS.BAD_REQUEST).json({
+//         message: "Product is already in the wishlist",
+//       });
+//     }
+
+//     // Add product to wishlist
+//     wishlist.products.push(productObjectId);
+//     await wishlist.save();
+
+//     res.status(HTTPSTATUS.OK).json({
+//       message: "Product added to wishlist",
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const addToWishList = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   const userId = req.user?._id;
-  const productId = req.params.id;
+  const productId = req.body.id;
+
+  console.log("userid", userId);
+
+  console.log("idp", productId);
 
   try {
+    // Find user first
     const user = await UserModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) {
+      throw new NotFoundException(
+        "User does not exist",
+        ErrorCodeEnum.AUTH_USER_NOT_FOUND
+      );
+    }
 
     const productObjectId = new Types.ObjectId(productId);
 
-    if (user.wishList.includes(new Types.ObjectId(productObjectId))) {
-      throw new Error("Product is already in the wishlist");
+    // Verify product exists
+    const product = await ProductModel.findById(productId);
+    console.log("product", product);
+
+    if (!product) {
+      return res.status(HTTPSTATUS.NOT_FOUND).json({
+        message: "Product not found",
+      });
     }
 
-    user.wishList.push(productObjectId);
+    let wishlist;
 
-    // Save the user document
-    await user.save();
+    // If user doesn't have a wishlist yet, create one
+    if (!user.wishlist) {
+      wishlist = await WishlistModel.create({
+        userId: userId,
+        products: [productId], // Store the ID, not the product object
+      });
+      console.log("wishlist", wishlist);
 
-    res.status(200).json({ message: "Product added to wishlist" });
+      user.wishlist = wishlist._id as Types.ObjectId;
+
+      console.log("user wish", user.wishlist);
+
+      await user.save();
+    } else {
+      // Find existing wishlist
+      wishlist = await WishlistModel.findById(user.wishlist).populate(
+        "products"
+      );
+
+      if (!wishlist) {
+        return res.status(HTTPSTATUS.NOT_FOUND).json({
+          message: "Wishlist not found",
+        });
+      }
+
+      // Check if product already exists in wishlist
+      const productExists = wishlist.products.some((item) =>
+        item._id.equals(productId)
+      );
+
+      if (productExists) {
+        return res.status(HTTPSTATUS.BAD_REQUEST).json({
+          message: "Product is already in the wishlist",
+        });
+      }
+
+      // Add product to wishlist
+      wishlist.products.push(productObjectId);
+      await wishlist.save();
+    }
+
+    res.status(HTTPSTATUS.OK).json({
+      message: "Product added to wishlist",
+    });
   } catch (error) {
     next(error);
   }
@@ -185,25 +355,36 @@ export const removeFromWishList = async (
   const productId = req.params.id;
 
   try {
-    const user = await UserModel.findById(userId);
-    if (!user) throw new Error("User not found");
+    // Find wishlist - use userId consistently
+    const wishlist = await WishlistModel.findOne({ userId: userId });
 
-    // Convert the productId to ObjectId
-    const productObjectId = new Types.ObjectId(productId);
-
-    // Check if the product exists in the wishlist
-    const isProductInWishList = user.wishList.includes(productObjectId);
-
-    if (!isProductInWishList) {
-      throw new Error("Product not found in the wishlist");
+    if (!wishlist) {
+      return res.status(HTTPSTATUS.NOT_FOUND).json({
+        message: "Wishlist not found",
+      });
     }
 
-    user.wishList = user.wishList.filter((id) => !id.equals(productObjectId));
+    const productObjectId = new Types.ObjectId(productId);
 
-    // Save the user document with the updated wishList
-    await user.save();
+    // Check if product exists in wishlist
+    const productExists = wishlist.products.some((id) =>
+      id.equals(productObjectId)
+    );
+    if (!productExists) {
+      return res.status(HTTPSTATUS.BAD_REQUEST).json({
+        message: "Product not found in the wishlist",
+      });
+    }
 
-    res.status(200).json({ message: "Product removed from wishlist" });
+    // Remove product from wishlist
+    wishlist.products = wishlist.products.filter(
+      (id) => !id.equals(productObjectId)
+    );
+    await wishlist.save();
+
+    res.status(HTTPSTATUS.OK).json({
+      message: "Product removed from wishlist",
+    });
   } catch (error) {
     next(error);
   }

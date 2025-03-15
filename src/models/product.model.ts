@@ -63,7 +63,6 @@ const productSchema = new Schema<ProductDocument>(
       default: 0,
     },
     isProductNew: {
-      // Renamed field
       type: Boolean,
       default: false,
     },
@@ -100,7 +99,27 @@ const productSchema = new Schema<ProductDocument>(
       index: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        ret.id = ret._id.toString(); // Ensure id is a string
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        ret.id = ret._id.toString(); // Apply the same transform for toObject
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 // Create slug from the name
@@ -136,9 +155,8 @@ productSchema.pre("save", function (next) {
 
 // Index for improved search performance
 productSchema.index({ name: "text", description: "text", tags: "text" });
-// productSchema.index({ slug: 1 });
 productSchema.index({ category: 1 });
-productSchema.index({ isOnSale: 1, isFeatured: 1, isProductNew: 1 }); // Adjusted here as well
+productSchema.index({ isOnSale: 1, isFeatured: 1, isProductNew: 1 });
 
 const ProductModel = mongoose.model<ProductDocument>("Product", productSchema);
 

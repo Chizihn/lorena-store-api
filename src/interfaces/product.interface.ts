@@ -3,6 +3,7 @@ import { CategoryDocument } from "../models/category.model";
 import { Subcategory } from "../models/subcategory.model";
 
 export interface ProductDocument extends Document {
+  id: string;
   name: string;
   image: string;
   additionalImages: string[];

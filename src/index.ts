@@ -13,10 +13,15 @@ import userRoutes from "./routes/user.route";
 const app = express();
 const BASE_PATH = config.BASE_PATH;
 
+// const origin =
+//   config.NODE_ENV === "development"
+//     ? "http://localhost:3000"
+//     : config.FRONTEND_ORIGIN;
+
 const origin =
   config.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : config.FRONTEND_ORIGIN;
+    ? "*" // Allow all origins in development
+    : config.FRONTEND_ORIGIN; // Use FRONTEND_ORIGIN in production
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

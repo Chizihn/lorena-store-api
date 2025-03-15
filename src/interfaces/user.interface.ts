@@ -35,6 +35,7 @@ interface RecentSearch {
 }
 
 export interface UserDocument extends Document {
+  id: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -47,7 +48,7 @@ export interface UserDocument extends Document {
   emailVerificationTokenExpires: Date | null;
   addresses: IAddress[];
   profileImage: string | null;
-  wishList: Types.ObjectId[];
+  wishlist: Types.ObjectId;
   passwordResetToken: string;
   passwordResetTokenExpires: Date | null;
   orders: OrderDocument[];

@@ -10,6 +10,7 @@ export interface OrderItemDocument {
 }
 
 export interface OrderDocument extends Document {
+  id: string;
   orderNumber: string;
   user: mongoose.Types.ObjectId;
   items: OrderItemDocument[];

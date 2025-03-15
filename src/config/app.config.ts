@@ -9,7 +9,7 @@ const appConfig = () => ({
 
   BASE_PATH: getEnv("BASE_PATH"),
 
-  FRONTEND_ORIGIN: getEnv("FRONTEND_ORIGIN"),
+  FRONTEND_ORIGIN: getEnv("FRONTEND_ORIGIN", "localhost:3000"),
 
   SMTP: {
     HOST: getEnv("SMTP_HOST"),

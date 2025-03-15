@@ -81,7 +81,10 @@ const userSchema = new Schema<UserDocument>(
       type: String,
       default: null,
     },
-    wishList: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+    wishlist: {
+      type: Schema.Types.ObjectId,
+      ref: "Wishlist",
+    },
 
     orders: [{ type: Schema.Types.ObjectId, ref: "Order" }],
     cart: { type: Schema.Types.ObjectId, ref: "Cart", default: null },
@@ -117,7 +120,27 @@ const userSchema = new Schema<UserDocument>(
       ref: "Wallet",
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        ret.id = ret._id.toString(); // Ensure id is a string
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        ret.id = ret._id.toString(); // Apply the same transform for toObject
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 // Add a method to create a wallet for the user

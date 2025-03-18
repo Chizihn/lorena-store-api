@@ -22,7 +22,7 @@ export const getAllProducts = async (
 
     if (products.length === 0) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
-        error: "No products found",
+        message: "No products found",
         errorCode: ErrorCodeEnum.PRODUCTS_NOT_FOUND,
       });
     }
@@ -45,7 +45,7 @@ export const getSingleProduct = async (
     );
     if (!product) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
-        error: "Product not found",
+        message: "Product not found",
         errorCode: ErrorCodeEnum.PRODUCT_NOT_FOUND,
       });
     }
@@ -269,10 +269,6 @@ export const addToWishList = async (
   const userId = req.user?._id;
   const productId = req.body.id;
 
-  console.log("userid", userId);
-
-  console.log("idp", productId);
-
   try {
     // Find user first
     const user = await UserModel.findById(userId);
@@ -287,7 +283,6 @@ export const addToWishList = async (
 
     // Verify product exists
     const product = await ProductModel.findById(productId);
-    console.log("product", product);
 
     if (!product) {
       return res.status(HTTPSTATUS.NOT_FOUND).json({
@@ -301,7 +296,7 @@ export const addToWishList = async (
     if (!user.wishlist) {
       wishlist = await WishlistModel.create({
         userId: userId,
-        products: [productId], // Store the ID, not the product object
+        products: [productId],
       });
       console.log("wishlist", wishlist);
 

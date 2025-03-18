@@ -23,7 +23,7 @@ const TransactionHistorySchema = new Schema(
 const WalletSchema = new Schema<WalletDocument>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User" },
-    amount: {
+    balance: {
       type: Number,
       required: true,
     },

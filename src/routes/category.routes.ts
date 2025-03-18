@@ -9,11 +9,7 @@ import { asyncHandler } from "../middlewares/asyncHandler.middleware";
 
 const categoryRoutes = express.Router();
 
-categoryRoutes.post(
-  "/categories/add",
-  adminMiddleware,
-  asyncHandler(createCategory)
-);
+categoryRoutes.post("/category", adminMiddleware, asyncHandler(createCategory));
 
 // GET: List all categories
 categoryRoutes.get("/categories", asyncHandler(getCategories));

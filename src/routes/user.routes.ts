@@ -3,7 +3,10 @@ import {
   adminMiddleware,
   authMiddleware,
 } from "../middlewares/auth.middleware";
-import { asyncHandler } from "../middlewares/asyncHandler.middleware";
+import {
+  asyncAuthHandler,
+  asyncHandler,
+} from "../middlewares/asyncHandler.middleware";
 import {
   fetchUserProfile,
   updateProfileHandler,
@@ -15,9 +18,9 @@ userRoutes.put(
   "/users/:id/update-profile",
   authMiddleware,
   adminMiddleware,
-  asyncHandler(updateProfileHandler)
+  asyncAuthHandler(updateProfileHandler)
 );
 
-userRoutes.get("/users/:id", authMiddleware, asyncHandler(fetchUserProfile));
+userRoutes.get("/users/me", authMiddleware, asyncAuthHandler(fetchUserProfile));
 
 export default userRoutes;

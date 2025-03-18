@@ -1,5 +1,8 @@
 import express from "express";
-import { asyncHandler } from "../middlewares/asyncHandler.middleware";
+import {
+  asyncAuthHandler,
+  asyncHandler,
+} from "../middlewares/asyncHandler.middleware";
 import {
   addProduct,
   addToWishList,
@@ -24,18 +27,18 @@ productRoutes.get("/products/:id", asyncHandler(getSingleProduct));
 
 productRoutes.post("/products/add", adminMiddleware, asyncHandler(addProduct));
 
-productRoutes.get("/wishlist", authMiddleware, asyncHandler(getWishlist));
+productRoutes.get("/wishlist", authMiddleware, asyncAuthHandler(getWishlist));
 
 productRoutes.post(
   "/wishlist/add",
   authMiddleware,
-  asyncHandler(addToWishList)
+  asyncAuthHandler(addToWishList)
 );
 
 productRoutes.delete(
   "/wishlist/remove/:id",
   authMiddleware,
-  asyncHandler(removeFromWishList)
+  asyncAuthHandler(removeFromWishList)
 );
 
 export default productRoutes;

@@ -9,7 +9,7 @@ interface TransactionHistory {
 
 export interface WalletDocument extends Document {
   user: UserDocument;
-  amount: number; // Current balance of the wallet
+  balance: number; // Current balance of the wallet
   currency: string; // Currency (e.g., USD, EUR)
   transactionHistory: TransactionHistory;
 }

@@ -24,6 +24,13 @@ import { sendEmail } from "../utils/sendEmail";
 import { ZodError } from "zod";
 import AccountModel from "../models/account.model";
 import { ProviderEnum } from "../enums/account-provider.enum";
+import { OAuth2Client } from "google-auth-library";
+import { config } from "../config/app.config";
+import passport from "passport";
+import { UserDocument } from "../interfaces/user.interface";
+import { AuthenticatedRequest } from "../@types/custom.type";
+
+const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
 
 export const createAccountHandler = async (
   req: Request,
@@ -71,13 +78,17 @@ export const createAccountHandler = async (
       text: `Please verify your email with this token. The token expires in an hour. ${verificationToken}`,
     });
 
+    const userProfile = {
+      ...newUser.toObject(),
+      providerInfo: newAccount ? newAccount.toObject() : null,
+    };
+
     //Success
 
     return res.status(HTTPSTATUS.CREATED).json({
       message: "User account created successfully",
       token,
-      user: newUser,
-      acount: newAccount,
+      user: userProfile,
     });
   } catch (error) {
     if (error instanceof ZodError) {
@@ -128,14 +139,24 @@ export const loginHandler = async (
       });
     }
 
+    const account = await AccountModel.findOne({
+      providerId: validatedData.email,
+      provider: ProviderEnum.EMAIL,
+    });
+
     //generate token for user
     const token = generateToken(existingUser._id as string, res);
     console.log("token", token);
 
+    const userProfile = {
+      ...existingUser.toObject(),
+      providerInfo: account ? account.toObject() : null,
+    };
+
     return res.status(200).json({
       message: "Login successful",
       token,
-      user: existingUser,
+      user: userProfile,
       account: existingAccount,
     });
   } catch (error) {
@@ -144,6 +165,197 @@ export const loginHandler = async (
       return;
     }
 
+    next(error);
+  }
+};
+
+export const googleLoginHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      throw new AppError(
+        "Google ID token is required",
+        HTTPSTATUS.BAD_REQUEST,
+        ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND
+      );
+    }
+
+    // Verify the token
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: config.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      throw new AppError(
+        "Invalid Google token",
+        HTTPSTATUS.BAD_REQUEST,
+        ErrorCodeEnum.AUTH_INVALID_TOKEN
+      );
+    }
+
+    // Check if user already exists with this email
+    let user = await UserModel.findOne({ email: payload.email });
+    let account = await AccountModel.findOne({
+      provider: ProviderEnum.GOOGLE,
+      providerId: payload.sub, // Google's user ID
+    });
+
+    // Create user if not exists
+    if (!user) {
+      user = new UserModel({
+        firstName: payload.given_name || "Google",
+        lastName: payload.family_name || "User",
+        email: payload.email,
+        emailVerified: payload.email_verified || false,
+        profileImage: payload.picture || null,
+      });
+
+      await user.save();
+    }
+
+    // Create account if not exists
+    if (!account) {
+      account = await AccountModel.create({
+        userId: user._id,
+        provider: ProviderEnum.GOOGLE,
+        providerId: payload.sub,
+      });
+    }
+
+    // Generate token
+    const token = generateToken(user._id as string, res);
+
+    return res.status(HTTPSTATUS.OK).json({
+      message: "Google login successful",
+      token,
+      user,
+      account,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const googleAuthCallback = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const redirectUrl =
+    config.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : config.FRONTEND_ORIGIN;
+
+  passport.authenticate(
+    "google",
+    { session: false },
+    (err: Error, user: UserDocument) => {
+      if (err || !user) {
+        return res.redirect(`${redirectUrl}/login?error=google-auth-failed`);
+      }
+
+      // Generate JWT
+      const token = generateToken(user._id as string, res);
+
+      // Redirect to frontend
+      res.redirect(`${redirectUrl}/auth/success?token=${token}`);
+    }
+  )(req, res, next);
+};
+
+export const linkGoogleAccount = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // The user must be logged in to link accounts
+    if (!req.user) {
+      return res.status(401).json({
+        status: "fail",
+        message: "You must be logged in to link accounts",
+      });
+    }
+
+    // Check if this Google account is already linked to another user
+    const existingAccount = await AccountModel.findOne({
+      provider: "GOOGLE",
+      providerId: req.body.providerId,
+    });
+
+    if (existingAccount) {
+      return res.status(400).json({
+        status: "fail",
+        message: "This Google account is already linked to another user",
+      });
+    }
+
+    // Create new account link
+    const account = await AccountModel.create({
+      userId: req.user?._id,
+      provider: "GOOGLE",
+      providerId: req.body.providerId,
+      refreshToken: req.body.refreshToken || null,
+      tokenExpiry: req.body.refreshToken
+        ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        : null,
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        account: {
+          provider: account.provider,
+          providerId: account.providerId,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Unlink Google account
+export const unlinkGoogleAccount = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // The user must be logged in to unlink accounts
+    if (!req.user) {
+      return res.status(401).json({
+        status: "fail",
+        message: "You must be logged in to unlink accounts",
+      });
+    }
+
+    // Find and delete the account link
+    const account = await AccountModel.findOneAndDelete({
+      userId: req.user._id,
+      provider: "GOOGLE",
+    });
+
+    if (!account) {
+      return res.status(404).json({
+        status: "fail",
+        message: "No linked Google account found",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: null,
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -174,7 +386,11 @@ export const verifyEmailHandler = async (
       });
     }
 
-    if (new Date() > emailVerificationTokenExpires) {
+    const expirationWithGracePeriod = new Date(
+      emailVerificationTokenExpires?.getTime() + 10 * 60 * 1000
+    );
+
+    if (new Date() > expirationWithGracePeriod) {
       user.emailVerificationToken = null;
       user.emailVerificationTokenExpires = null;
 
@@ -197,6 +413,31 @@ export const verifyEmailHandler = async (
       return;
     }
 
+    next(error);
+  }
+};
+
+export const fetchUserByToken = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+
+    // Fetch the user from the database using the user ID
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Return the user's data
+    return res.status(200).json({
+      message: "User fetched successfully",
+      user,
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -378,7 +619,11 @@ export const resetPasswordHandler = async (
 
     // Check if token has expired
     const passwordResetTokenExpires = user.passwordResetTokenExpires as Date;
-    if (new Date() > passwordResetTokenExpires) {
+    const expirationWithGracePeriod = new Date(
+      passwordResetTokenExpires?.getTime() + 10 * 60 * 1000
+    );
+
+    if (new Date() > expirationWithGracePeriod) {
       throw new BadRequestException(
         "Password reset token has expired!",
         ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND

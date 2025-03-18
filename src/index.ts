@@ -8,7 +8,9 @@ import authRoutes from "./routes/auth.routes";
 import productRoutes from "./routes/product.routes";
 import categoryRoutes from "./routes/category.routes";
 import subcategoryRoutes from "./routes/subcategory.routes";
-import userRoutes from "./routes/user.route";
+import userRoutes from "./routes/user.routes";
+import cartRoutes from "./routes/cart.routes";
+import orderRoutes from "./routes/order.routes";
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -33,13 +35,12 @@ app.use(
 );
 
 app.use(`${BASE_PATH}/auth`, authRoutes);
+app.use(`${BASE_PATH}`, cartRoutes);
+app.use(`${BASE_PATH}`, orderRoutes);
 app.use(`${BASE_PATH}`, productRoutes);
 app.use(`${BASE_PATH}`, categoryRoutes);
 app.use(`${BASE_PATH}`, subcategoryRoutes);
 app.use(`${BASE_PATH}`, userRoutes);
-
-console.log("base", BASE_PATH);
-console.log("frontend origin", origin);
 
 app.get("/", (req: Request, res: Response, next: NextFunction) => {
   res.send("Hello World!");

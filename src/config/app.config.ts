@@ -7,6 +7,8 @@ const appConfig = () => ({
   JWT_SECRET: getEnv("JWT_SECRET", "mysecret"),
   JWT_EXPIRES_IN: getEnv("JWT_EXPIRES_IN", "1d"),
 
+  GOOGLE_CLIENT_ID: getEnv("GOOGLE_CLIENT_ID"),
+
   BASE_PATH: getEnv("BASE_PATH"),
 
   FRONTEND_ORIGIN: getEnv("FRONTEND_ORIGIN", "localhost:3000"),
@@ -18,6 +20,8 @@ const appConfig = () => ({
     PASS: getEnv("SMTP_PASS"),
     FROM: getEnv("EMAIL_FROM"),
   },
+
+  PAYSTACK_SECRET_KEY: getEnv("PAYSTACK_SECRET_KEY"),
 });
 
 export const config = appConfig();

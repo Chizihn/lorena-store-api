@@ -67,33 +67,30 @@ export const fetchUserProfile = async (
   next: NextFunction
 ) => {
   try {
-    const { token } = req.query;
     const userId = req.user?._id;
+    console.log("userid", userId);
 
-    if (!token) {
-      throw new NotFoundException(
-        "No such user",
-        ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND
-      );
-    }
-
-    if (!userId) {
+    // Find the user with UserModel
+    const user = await UserModel.findById(userId).select(
+      "-password -emailVerificationToken -emailVerificationTokenExpires -passwordResetToken -passwordResetTokenExpires "
+    );
+    if (!user) {
       throw new NotFoundException(
         "No such user",
         ErrorCodeEnum.AUTH_USER_NOT_FOUND
       );
     }
 
-    // Find the user and populate the 'account' field
-    const user = await AccountModel.findOne({ userId: userId }).populate(
-      "user"
-    );
+    // Find the account/provider info associated with this user
+    const accountInfo = await AccountModel.findOne({ userId: userId });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // Combine the information
+    const userProfile = {
+      ...user.toObject(), // Convert Mongoose document to plain object
+      providerInfo: accountInfo ? accountInfo.toObject() : null,
+    };
 
-    return res.status(200).json(user);
+    return res.status(200).json(userProfile);
   } catch (error) {
     next(error);
   }

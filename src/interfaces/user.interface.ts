@@ -1,8 +1,8 @@
 import { Document, Types } from "mongoose";
 import { CartDocument } from "../models/cart.model";
 import { OrderDocument } from "../models/order.model";
-import { StatusEnumType } from "../enums/status.enum";
 import { WalletDocument } from "./wallet.interface";
+import { UserStatusEnumType } from "../enums/status.enum";
 
 export interface IAddress {
   street: string;
@@ -55,7 +55,7 @@ export interface UserDocument extends Document {
   cart: CartDocument | null;
   paymentMethods: PaymentMethod[];
   preferences: UserPreferences;
-  status: StatusEnumType;
+  status: UserStatusEnumType;
   recentSearches: RecentSearch[];
   wallet: WalletDocument;
   createWallet: () => Promise<void>;

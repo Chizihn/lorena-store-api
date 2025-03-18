@@ -2,10 +2,10 @@ import mongoose, { Schema } from "mongoose";
 import { RolesEnum } from "../enums/roles.enum";
 import { compareValue, hashValue } from "../utils/bcrypt";
 import { UserDocument } from "../interfaces/user.interface";
-import { StatusEnum } from "../enums/status.enum";
 import { Wallet } from "./wallet.model";
+import { UserStatusEnum } from "../enums/status.enum";
 
-const addressSchema = new mongoose.Schema({
+export const addressSchema = new mongoose.Schema({
   street: { type: String, required: [true, "Street address is required"] },
   city: { type: String, required: [true, "City is required"] },
   state: { type: String, required: [true, "State is required"] },
@@ -106,8 +106,8 @@ const userSchema = new Schema<UserDocument>(
     },
     status: {
       type: String,
-      enum: Object.values(StatusEnum),
-      default: StatusEnum.ACTIVE,
+      enum: Object.values(UserStatusEnum),
+      default: UserStatusEnum.ACTIVE,
     },
     recentSearches: [
       {
@@ -126,7 +126,7 @@ const userSchema = new Schema<UserDocument>(
       virtuals: true,
       transform: function (doc, ret) {
         ret.id = ret._id.toString(); // Ensure id is a string
-        delete ret._id;
+        // delete ret._id;
         delete ret.__v;
         return ret;
       },
@@ -135,7 +135,7 @@ const userSchema = new Schema<UserDocument>(
       virtuals: true,
       transform: function (doc, ret) {
         ret.id = ret._id.toString(); // Apply the same transform for toObject
-        delete ret._id;
+        // delete ret._id;
         delete ret.__v;
         return ret;
       },

@@ -1,7 +1,6 @@
 import { NextFunction, Response } from "express";
-import { AuthenticatedRequest, CustomRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../@types/custom.type";
 import OrderModel, {
-  OrderDocument,
   OrderItemDocument,
   PaymentMethodEnum,
 } from "../models/order.model";
@@ -12,6 +11,7 @@ import CartModel from "../models/cart.model";
 import { config } from "../config/app.config";
 import UserModel from "../models/user.model";
 
+// Function for fetching orders only
 export const getOrders = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -20,17 +20,72 @@ export const getOrders = async (
   try {
     const userId = req.user?._id;
 
+    // Fetch the orders for the user
     const orders = await OrderModel.find({ userId }).populate({
       path: "items.product",
       model: "Product",
-      select: "discountedPrice originalPrice name image", // Include any other fields you need
+      select: "discountedPrice originalPrice name image stock",
     });
 
     if (!orders || orders.length === 0) {
       return res.status(200).json({ message: "You have no orders" });
     }
 
+    // Return the orders without modifying anything
     return res.status(200).json({ orders });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Separate function for updating product stock
+export const updateOutOfStockProducts = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+
+    // Fetch the orders for the user, focusing only on products
+    const orders = await OrderModel.find({ userId }).populate({
+      path: "items.product",
+      model: "Product",
+      select: "_id stock",
+    });
+
+    if (!orders || orders.length === 0) {
+      return res.status(200).json({ message: "No products to update" });
+    }
+
+    // Track products that were updated
+    const updatedProducts = [];
+
+    // Check for out-of-stock products and update them
+    const productUpdates = [];
+    for (const order of orders) {
+      for (const item of order.items) {
+        const product = item.product;
+        if (product && product.stock <= 0) {
+          updatedProducts.push(product._id);
+          productUpdates.push(
+            ProductModel.updateOne({ _id: product._id }, { $set: { stock: 0 } })
+          );
+        }
+      }
+    }
+
+    // Execute all updates in parallel
+    if (productUpdates.length > 0) {
+      await Promise.all(productUpdates);
+      return res.status(200).json({
+        message: "Out of stock products updated",
+        updatedCount: productUpdates.length,
+        updatedProductIds: updatedProducts,
+      });
+    } else {
+      return res.status(200).json({ message: "No products needed updating" });
+    }
   } catch (error) {
     next(error);
   }
@@ -171,13 +226,18 @@ export const createOrder = async (
     //     });
     //   }
 
+    const uniqueReference = `${userId}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2)}`;
+
     // Create a draft order
     const newOrder = new OrderModel({
       userId,
       items: orderItems,
       totalAmount,
       paymentStatus: PaymentStatusEnum.PENDING,
-      orderStatus: OrderStatusEnum.DRAFT, // Consider adding a DRAFT status to your enum
+      orderStatus: OrderStatusEnum.DRAFT,
+      paystackReference: uniqueReference,
     });
 
     // Save the draft order
@@ -301,7 +361,6 @@ export const checkout = async (
       : 1;
 
     // Generate a unique reference for each payment attempt
-    const uniqueReference = `${orderId}_${Date.now()}_${order.paymentAttempts}`;
 
     const callbackUrl =
       config.NODE_ENV === "development"
@@ -312,7 +371,7 @@ export const checkout = async (
     let paystackPayload = {
       email: email,
       amount: Math.round(order.totalAmount * 100), // Convert to kobo/cents
-      reference: uniqueReference,
+      reference: order.paystackReference,
       callback_url: `${callbackUrl}/orders/verify`,
       metadata: {
         orderId: orderId,

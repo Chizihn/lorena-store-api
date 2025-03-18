@@ -361,15 +361,18 @@ export const unlinkGoogleAccount = async (
 };
 
 export const verifyEmailHandler = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
+    const userId = req.user?._id;
+
     const validatedData = VerifyEmailSchema.parse(req.body);
 
     const user = await UserModel.findOne({
       emailVerificationToken: validatedData.token,
+      userId,
     });
 
     if (!user) {

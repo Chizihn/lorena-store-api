@@ -1,5 +1,8 @@
 import express from "express";
-import { asyncHandler } from "../middlewares/asyncHandler.middleware";
+import {
+  asyncAuthHandler,
+  asyncHandler,
+} from "../middlewares/asyncHandler.middleware";
 import {
   createAccountHandler,
   fetchUserByToken,
@@ -8,6 +11,7 @@ import {
   googleLoginHandler,
   loginHandler,
   resendResetPasswordToken,
+  resendVerifyEmailToken,
   resetPasswordHandler,
   verifyEmailHandler,
 } from "../controllers/auth.controller";
@@ -24,7 +28,8 @@ router.post("/login", asyncHandler(loginHandler));
 router.post("/google", asyncHandler(googleLoginHandler));
 router.get("/google/callback", googleAuthCallback);
 
-router.post("/verify-email", asyncHandler(verifyEmailHandler));
+router.post("/verify-email", asyncAuthHandler(verifyEmailHandler));
+router.post("/resend-verify-token", asyncAuthHandler(resendVerifyEmailToken));
 
 router.post("/forgot-password", asyncHandler(forgotPasswordHandler));
 

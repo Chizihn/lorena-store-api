@@ -271,6 +271,8 @@ export const checkout = async (
 ) => {
   const userId = req.user?._id;
 
+  console.log("userid", userId);
+
   try {
     const {
       orderId,
@@ -280,6 +282,8 @@ export const checkout = async (
       email,
       notes,
     } = req.body;
+
+    console.log("req.body", req.body);
 
     // Validate payment method
     if (!Object.values(PaymentMethodEnum).includes(paymentMethod)) {
@@ -291,6 +295,8 @@ export const checkout = async (
 
     // Find the draft order
     const order = await OrderModel.findOne({ _id: orderId, userId });
+
+    console.log("order", order);
 
     if (!order) {
       return res.status(404).json({

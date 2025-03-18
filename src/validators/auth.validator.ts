@@ -17,10 +17,7 @@ export const CreateAccountSchema = z.object({
 // Verify Email Schema
 export const VerifyEmailSchema = z.object({
   email: z.string().email("Invalid email address"),
-  token: z
-    .string()
-    .min(1, "Token is required")
-    .max(6, "6 characters are required"),
+  token: z.string(),
 });
 
 // Forgot Password Schema

@@ -4,7 +4,6 @@ import { AuthenticatedRequest } from "../@types/custom.type";
 import { HTTPSTATUS } from "../config/http.config";
 import ProductModel from "../models/product.model";
 
-// export const getCart = async (
 //   req: AuthenticatedRequest,
 //   res: Response,
 //   next: NextFunction
@@ -46,13 +45,11 @@ export const getCart = async (
     console.log("user", userId);
 
     // Populate with all the fields you need
-    const cart = await CartModel.findOne({ userId })
-      .populate({
-        path: "items.product",
-        model: "Product",
-        select: "discountedPrice originalPrice", // Include any other fields you need
-      })
-      .lean();
+    const cart = await CartModel.findOne({ userId }).populate({
+      path: "items.product",
+      model: "Product",
+      select: "_id id discountedPrice originalPrice",
+    });
 
     if (!cart) {
       return res.status(200).json({ message: "No cart found for this user" });

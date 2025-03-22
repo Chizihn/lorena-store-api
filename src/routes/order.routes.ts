@@ -5,20 +5,30 @@ import {
   asyncHandler,
 } from "../middlewares/asyncHandler.middleware";
 import {
+  checkOrderStatus,
+  checkOrderStatusAndVerifyPayment,
   checkout,
   createOrder,
   getOrders,
   getSingleOrder,
+  paystackWebhook,
   verifyPayment,
 } from "../controllers/order.controller";
 
 const orderRoutes = express.Router();
 
 orderRoutes.get("/orders", authMiddleware, asyncAuthHandler(getOrders));
+
 orderRoutes.get(
-  "/orders/verify/:id",
+  "/orders/status/:id",
   authMiddleware,
-  asyncAuthHandler(verifyPayment)
+  asyncAuthHandler(checkOrderStatusAndVerifyPayment)
+);
+
+orderRoutes.post(
+  "/webhook/paystack",
+  authMiddleware,
+  asyncAuthHandler(paystackWebhook)
 );
 
 orderRoutes.get(

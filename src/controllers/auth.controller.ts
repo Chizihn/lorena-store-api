@@ -420,31 +420,6 @@ export const verifyEmailHandler = async (
   }
 };
 
-export const fetchUserByToken = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.user?._id;
-
-    // Fetch the user from the database using the user ID
-    const user = await UserModel.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Return the user's data
-    return res.status(200).json({
-      message: "User fetched successfully",
-      user,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const resendVerifyEmailToken = async (
   req: Request,
   res: Response,
@@ -541,6 +516,124 @@ export const resendVerifyEmailToken = async (
   }
 };
 
+// export const forgotPasswordHandler = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   const { email } = req.body;
+
+//   try {
+//     if (!email) {
+//       throw new BadRequestException(
+//         "Email is required!",
+//         ErrorCodeEnum.VALIDATION_ERROR
+//       );
+//     }
+
+//     const user = await UserModel.findOne({ email: email });
+//     console.log("forgot 4");
+
+//     if (!user) {
+//       return res.status(HTTPSTATUS.NOT_FOUND).json({
+//         message: ErrorCodeEnum.AUTH_USER_NOT_FOUND,
+//       });
+//     }
+
+//     const passwordResetTokenValue = generateAuthToken();
+//     console.log("Token value", passwordResetTokenValue);
+
+//     Object.assign(user, {
+//       ...user,
+//       passwordResetToken: passwordResetTokenValue,
+//     });
+
+//     await user.save();
+
+//     await sendEmail({
+//       to: user.email,
+//       subject: "Verify your password ret",
+//       text: `Please reset your password with this token. ${passwordResetTokenValue}`,
+//     });
+
+//     return res
+//       .status(HTTPSTATUS.OK)
+//       .json({ message: "Forgot password success. Sent token" });
+//   } catch (error) {
+//     // Handle Zod validation errors
+//     if (error instanceof ZodError) {
+//       next(new ZodValidationException(error));
+//       return;
+//     }
+
+//     next(error);
+//   }
+// };
+
+// export const resetPasswordHandler = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const validateData = ResetPasswordSchema.parse(req.body);
+
+//     const { email, token, newPassword } = validateData;
+
+//     // Find the user by email
+//     const user = await UserModel.findOne({ email });
+
+//     if (!user) {
+//       throw new NotFoundException("User not found!", ErrorCodeEnum.NOT_FOUND);
+//     }
+
+//     // Check if the token matches and is valid
+//     if (user.passwordResetToken !== token) {
+//       throw new BadRequestException(
+//         "Invalid verification token!",
+//         ErrorCodeEnum.VALIDATION_ERROR
+//       );
+//     }
+
+//     // Check if token has expired
+//     const passwordResetTokenExpires = user.passwordResetTokenExpires as Date;
+//     const expirationWithGracePeriod = new Date(
+//       passwordResetTokenExpires?.getTime() + 10 * 60 * 1000
+//     );
+
+//     if (new Date() > expirationWithGracePeriod) {
+//       throw new BadRequestException(
+//         "Password reset token has expired!",
+//         ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND
+//       );
+//     }
+
+//     // Hash the new password
+//     const hashedPassword = await hashValue(newPassword);
+
+//     // Update user with new password and clear the reset token
+//     Object.assign(user, {
+//       password: hashedPassword,
+//       passwordResetToken: null,
+//       passwordResetTokenExpires: null,
+//     });
+
+//     await user.save();
+
+//     return res
+//       .status(HTTPSTATUS.OK)
+//       .json({ message: "Password reset successfully!" });
+//   } catch (error) {
+//     // Handle Zod validation errors
+//     if (error instanceof ZodError) {
+//       next(new ZodValidationException(error));
+//       return;
+//     }
+
+//     next(error);
+//   }
+// };
+
 export const forgotPasswordHandler = async (
   req: Request,
   res: Response,
@@ -568,24 +661,75 @@ export const forgotPasswordHandler = async (
     const passwordResetTokenValue = generateAuthToken();
     console.log("Token value", passwordResetTokenValue);
 
+    // Save the reset token and set expiration date (optional, could be added if needed)
     Object.assign(user, {
-      ...user,
       passwordResetToken: passwordResetTokenValue,
+      passwordResetTokenExpires: new Date(Date.now() + 15 * 60 * 1000), // Expires in 15 minutes
     });
 
     await user.save();
 
     await sendEmail({
       to: user.email,
-      subject: "Verify your password ret",
-      text: `Please reset your password with this token. ${passwordResetTokenValue}`,
+      subject: "Password Reset Token",
+      text: `Please reset your password with this token: ${passwordResetTokenValue}`,
     });
 
     return res
       .status(HTTPSTATUS.OK)
-      .json({ message: "Forgot password success. Sent token" });
+      .json({ message: "Password reset token sent successfully." });
   } catch (error) {
-    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+      next(new ZodValidationException(error));
+      return;
+    }
+
+    next(error);
+  }
+};
+
+export const verifyResetTokenHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { email, token } = req.body;
+
+  try {
+    if (!email || !token) {
+      throw new BadRequestException(
+        "Email and token are required!",
+        ErrorCodeEnum.VALIDATION_ERROR
+      );
+    }
+
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      throw new NotFoundException("User not found!", ErrorCodeEnum.NOT_FOUND);
+    }
+
+    // Check if the token matches
+    if (user.passwordResetToken !== token) {
+      throw new BadRequestException(
+        "Invalid reset token!",
+        ErrorCodeEnum.VALIDATION_ERROR
+      );
+    }
+
+    // Check if token has expired
+    const passwordResetTokenExpires = user.passwordResetTokenExpires as Date;
+    if (new Date() > passwordResetTokenExpires) {
+      throw new BadRequestException(
+        "Password reset token has expired!",
+        ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND
+      );
+    }
+
+    return res.status(HTTPSTATUS.OK).json({
+      message: "Token is valid, you can proceed to reset the password.",
+    });
+  } catch (error) {
     if (error instanceof ZodError) {
       next(new ZodValidationException(error));
       return;
@@ -600,33 +744,33 @@ export const resetPasswordHandler = async (
   res: Response,
   next: NextFunction
 ) => {
+  const { email, token, newPassword } = req.body;
+
   try {
-    const validateData = ResetPasswordSchema.parse(req.body);
+    if (!email || !token || !newPassword) {
+      throw new BadRequestException(
+        "Email, token, and new password are required!",
+        ErrorCodeEnum.VALIDATION_ERROR
+      );
+    }
 
-    const { email, token, newPassword } = validateData;
-
-    // Find the user by email
     const user = await UserModel.findOne({ email });
 
     if (!user) {
       throw new NotFoundException("User not found!", ErrorCodeEnum.NOT_FOUND);
     }
 
-    // Check if the token matches and is valid
+    // Check if the token matches
     if (user.passwordResetToken !== token) {
       throw new BadRequestException(
-        "Invalid verification token!",
+        "Invalid reset token!",
         ErrorCodeEnum.VALIDATION_ERROR
       );
     }
 
     // Check if token has expired
     const passwordResetTokenExpires = user.passwordResetTokenExpires as Date;
-    const expirationWithGracePeriod = new Date(
-      passwordResetTokenExpires?.getTime() + 10 * 60 * 1000
-    );
-
-    if (new Date() > expirationWithGracePeriod) {
+    if (new Date() > passwordResetTokenExpires) {
       throw new BadRequestException(
         "Password reset token has expired!",
         ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND
@@ -649,7 +793,6 @@ export const resetPasswordHandler = async (
       .status(HTTPSTATUS.OK)
       .json({ message: "Password reset successfully!" });
   } catch (error) {
-    // Handle Zod validation errors
     if (error instanceof ZodError) {
       next(new ZodValidationException(error));
       return;

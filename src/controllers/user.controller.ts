@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import { NotFoundException, ZodValidationException } from "../utils/appError";
+import {
+  NotFoundException,
+  UnauthorizedException,
+  ZodValidationException,
+} from "../utils/appError";
 import { UpdateProfileSchema } from "../validators/auth.validator";
 import { HTTPSTATUS } from "../config/http.config";
 import UserModel from "../models/user.model";
@@ -22,10 +26,12 @@ export const updateProfileHandler = async (
     const userId = req.user?._id;
 
     // If user ID is not available, respond with unauthorized error
+
     if (!userId) {
-      return res.status(HTTPSTATUS.UNAUTHORIZED).json({
-        message: "User not authenticated",
-      });
+      throw new UnauthorizedException(
+        "User not authenticated",
+        ErrorCodeEnum.ACCESS_UNAUTHORIZED
+      );
     }
 
     // Find the user by ID
@@ -33,9 +39,10 @@ export const updateProfileHandler = async (
 
     // If the user is not found, return a not found error
     if (!user) {
-      return res
-        .status(HTTPSTATUS.NOT_FOUND)
-        .json({ message: ErrorCodeEnum.AUTH_USER_NOT_FOUND });
+      throw new NotFoundException(
+        "No user found",
+        ErrorCodeEnum.AUTH_USER_NOT_FOUND
+      );
     }
 
     // Log the validated data to check what is being updated
@@ -91,6 +98,47 @@ export const fetchUserProfile = async (
     };
 
     return res.status(200).json(userProfile);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUsers = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const users = await UserModel.find();
+
+    if (!users) {
+      throw new NotFoundException(
+        "There are no users yet",
+        ErrorCodeEnum.NOT_FOUND
+      );
+    }
+
+    return res.status(HTTPSTATUS.OK).json(users);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUser = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      throw new NotFoundException("User not found", ErrorCodeEnum.NOT_FOUND);
+    }
+
+    return res.status(HTTPSTATUS.OK).json(user);
   } catch (error) {
     next(error);
   }

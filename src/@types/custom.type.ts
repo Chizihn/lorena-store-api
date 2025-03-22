@@ -19,7 +19,7 @@ export interface AnyResponse extends Response {
   customData?: any; // Custom property you want to add to the Response
 }
 
-interface VerifyPaymentRequest extends AuthenticatedRequest {
+export interface VerifyPaymentRequest extends AuthenticatedRequest {
   query: {
     reference?: string | string[];
     [key: string]: any;

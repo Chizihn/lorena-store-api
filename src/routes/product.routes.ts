@@ -6,11 +6,13 @@ import {
 import {
   addProduct,
   addToWishList,
+  deleteProduct,
   getAllProducts,
   getProductBySlug,
   getSingleProduct,
   getWishlist,
   removeFromWishList,
+  updateProduct,
 } from "../controllers/product.controller";
 import {
   adminMiddleware,
@@ -26,6 +28,17 @@ productRoutes.get("/products/:slug", asyncHandler(getProductBySlug));
 productRoutes.get("/products/:id", asyncHandler(getSingleProduct));
 
 productRoutes.post("/products/add", adminMiddleware, asyncHandler(addProduct));
+productRoutes.put(
+  "/products/:id",
+  adminMiddleware,
+  asyncAuthHandler(updateProduct)
+);
+
+productRoutes.delete(
+  "/products/:id",
+  adminMiddleware,
+  asyncAuthHandler(deleteProduct)
+);
 
 productRoutes.get("/wishlist", authMiddleware, asyncAuthHandler(getWishlist));
 

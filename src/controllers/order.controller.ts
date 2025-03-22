@@ -1,5 +1,8 @@
 import { NextFunction, Response } from "express";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import {
+  AuthenticatedRequest,
+  VerifyPaymentRequest,
+} from "../@types/custom.type";
 import OrderModel, {
   OrderItemDocument,
   PaymentMethodEnum,
@@ -10,6 +13,9 @@ import axios from "axios";
 import CartModel from "../models/cart.model";
 import { config } from "../config/app.config";
 import UserModel from "../models/user.model";
+import crypto from "crypto";
+import { NotFoundException } from "../utils/appError";
+import { ErrorCodeEnum } from "../enums/error-code.enum";
 
 // Function for fetching orders only
 export const getOrders = async (
@@ -27,12 +33,11 @@ export const getOrders = async (
       select: "discountedPrice originalPrice name image stock",
     });
 
-    if (!orders || orders.length === 0) {
-      return res.status(200).json({ message: "You have no orders" });
-    }
-
-    // Return the orders without modifying anything
-    return res.status(200).json({ orders });
+    // Instead of throwing an error, just return an empty array
+    return res.status(200).json({
+      orders: orders || [],
+      count: orders.length,
+    });
   } catch (error) {
     next(error);
   }
@@ -226,7 +231,7 @@ export const createOrder = async (
     //     });
     //   }
 
-    const uniqueReference = `${userId}_${Date.now()}_${Math.random()
+    const uniqueReference = `${userId}_${Date.now()}${Math.random()
       .toString(36)
       .substring(2)}`;
 
@@ -283,8 +288,6 @@ export const checkout = async (
       notes,
     } = req.body;
 
-    console.log("req.body", req.body);
-
     // Validate payment method
     if (!Object.values(PaymentMethodEnum).includes(paymentMethod)) {
       return res.status(400).json({
@@ -296,8 +299,6 @@ export const checkout = async (
     // Find the draft order
     const order = await OrderModel.findOne({ _id: orderId, userId });
 
-    console.log("order", order);
-
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -305,13 +306,40 @@ export const checkout = async (
       });
     }
 
-    console.log("Order found:", order);
+    // Check if all products in the order are in stock
+    const outOfStockItems = [];
+    for (const item of order.items) {
+      const product = await ProductModel.findById(item.product);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          error: `Product with ID ${item.product} not found`,
+        });
+      }
+
+      // Check if product stock is sufficient
+      if (product.stock < item.quantity) {
+        outOfStockItems.push({
+          productId: item.product,
+          productName: product.name,
+          requestedQuantity: item.quantity,
+          availableStock: product.stock,
+        });
+      }
+    }
+
+    // If any products are out of stock, return an error
+    if (outOfStockItems.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Some products are out of stock",
+        outOfStockItems: outOfStockItems,
+      });
+    }
 
     // Reset order status if previous attempt was unsuccessful
-    if (
-      order.orderStatus !== OrderStatusEnum.DRAFT &&
-      order.paymentStatus === PaymentStatusEnum.PENDING
-    ) {
+    // Reset order status if payment is pending
+    if (order.paymentStatus === PaymentStatusEnum.PENDING) {
       // Reset order status to DRAFT and paymentStatus to PENDING to allow retry
       order.orderStatus = OrderStatusEnum.DRAFT;
       order.paymentStatus = PaymentStatusEnum.PENDING;
@@ -352,8 +380,6 @@ export const checkout = async (
     // Save updated user with new addresses
     await user.save();
 
-    console.log("user", user);
-
     // Update order with checkout details
     order.shippingAddress = shippingAddress;
     order.billingAddress = billingAddress;
@@ -367,7 +393,9 @@ export const checkout = async (
       : 1;
 
     // Generate a unique reference for each payment attempt
+    const newUniqueReference = `${order.paystackReference}${order.paymentAttempts}`;
 
+    //Calback url
     const callbackUrl =
       config.NODE_ENV === "development"
         ? "http://localhost:3000"
@@ -377,15 +405,21 @@ export const checkout = async (
     let paystackPayload = {
       email: email,
       amount: Math.round(order.totalAmount * 100), // Convert to kobo/cents
-      reference: order.paystackReference,
-      callback_url: `${callbackUrl}/orders/verify`,
+      reference: newUniqueReference,
+      callback_url: `${callbackUrl}/orders/confirmation?orderId=${order._id}`,
       metadata: {
         orderId: orderId,
         userId: userId,
         attemptId: order.paymentAttempts,
       },
-      paymentMethod: PaymentMethodEnum.BANK_TRANSFER ? "bank" : "card",
+      // Use channels array to specify available payment methods
+      channels:
+        paymentMethod === PaymentMethodEnum.BANK_TRANSFER
+          ? ["bank_transfer"] // Transfer first if user selected transfer
+          : ["card"], // Card first if user selected card
     };
+
+    console.log("callbackurl", paystackPayload.callback_url);
 
     // Make the request to Paystack API
     const paystackResponse = await axios.post(
@@ -423,6 +457,144 @@ export const checkout = async (
   } catch (error) {
     console.error("Error during checkout:", error);
     next(error); // Pass the error to the next middleware (error handler)
+  }
+};
+
+export const paystackWebhook = async (
+  req: VerifyPaymentRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Verify that the request is from Paystack
+    const hash = crypto
+      .createHmac("sha512", config.PAYSTACK_SECRET_KEY)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
+
+    if (hash !== req.headers["x-paystack-signature"]) {
+      return res
+        .status(401)
+        .json({ status: "error", message: "Invalid signature" });
+    }
+
+    // Get event type and data
+    const event = req.body;
+
+    // Handle the event based on type
+    if (event?.event === "charge.success") {
+      const reference = event.data.reference;
+      const paymentData = event.data;
+
+      // Extract metadata from the payment
+      const { orderId, userId } = paymentData.metadata;
+
+      // Find the order using the orderId
+      const order = await OrderModel.findById(orderId);
+
+      if (!order) {
+        console.error("Order not found for reference:", reference);
+        return res.status(200).send("Webhook received"); // Return 200 to acknowledge receipt
+      }
+
+      // Update order status
+      order.paymentStatus = PaymentStatusEnum.PAID;
+      order.orderStatus = OrderStatusEnum.PROCESSING;
+      await order.save();
+
+      // Update product inventory based on the order items
+      for (const item of order.items) {
+        await ProductModel.findByIdAndUpdate(item.product, {
+          $inc: { stock: -item.quantity },
+        });
+      }
+
+      console.log(`Payment verified and order ${orderId} updated to PAID`);
+    }
+
+    // Always return 200 for webhooks to acknowledge receipt
+    return res.status(200).send("Webhook received");
+  } catch (error) {
+    next(error);
+    return res.status(200).send("Webhook received");
+  }
+};
+
+export const checkOrderStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+    const { orderId } = req.params;
+
+    // Find the order for this user
+    const order = await OrderModel.findOne({ _id: orderId, userId });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found",
+      });
+    }
+
+    // If payment is still pending and we have a reference, check Paystack
+    if (
+      order.paymentStatus === PaymentStatusEnum.PENDING &&
+      order.paystackReference
+    ) {
+      try {
+        // Verify the payment with Paystack
+        const verificationResponse = await axios.get(
+          `https://api.paystack.co/transaction/verify/${order.paystackReference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
+            },
+          }
+        );
+
+        const paymentData = verificationResponse.data.data;
+
+        // Update order if payment was successful
+        if (
+          verificationResponse.data.status &&
+          paymentData.status === "success"
+        ) {
+          order.paymentStatus = PaymentStatusEnum.PAID;
+          order.orderStatus = OrderStatusEnum.PROCESSING;
+          await order.save();
+
+          // Update product inventory
+          for (const item of order.items) {
+            await ProductModel.findByIdAndUpdate(item.product, {
+              $inc: { stock: -item.quantity },
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error verifying payment with Paystack:", error);
+        // Don't fail the request, just continue with the current order status
+      }
+    }
+
+    // Return the order with its current status
+    return res.status(200).json({
+      success: true,
+      order: {
+        _id: order._id,
+        orderId: order.orderId,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        totalAmount: order.totalAmount,
+        items: order.items,
+        // Include other fields you want to return
+      },
+    });
+  } catch (error) {
+    console.error("Error checking order status:", error);
+    next(error);
   }
 };
 
@@ -502,5 +674,87 @@ export const verifyPayment = async (
   } catch (error) {
     console.error("Error verifying payment:", error);
     next(error);
+  }
+};
+
+export const checkOrderStatusAndVerifyPayment = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+    const orderId = req.params?.id;
+
+    console.log("orderid", orderId);
+
+    // Fetch the order for this user
+    const order = await OrderModel.findOne({ _id: orderId, userId });
+
+    console.log("order", order);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: "Order not found",
+      });
+    }
+
+    if (
+      order.paymentStatus === PaymentStatusEnum.PENDING &&
+      order.paystackReference
+    ) {
+      try {
+        // Verify the payment with Paystack
+        const verificationResponse = await axios.get(
+          `https://api.paystack.co/transaction/verify/${order.paystackReference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
+            },
+          }
+        );
+
+        const paymentData = verificationResponse.data.data;
+
+        // If payment was successful, update the order
+        if (
+          verificationResponse.data.status &&
+          paymentData.status === "success"
+        ) {
+          order.paymentStatus = PaymentStatusEnum.PAID;
+          order.orderStatus = OrderStatusEnum.PROCESSING;
+
+          await order.save();
+
+          // Update product inventory
+          for (const item of order.items) {
+            await ProductModel.findByIdAndUpdate(item.product, {
+              $inc: { stock: -item.quantity },
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error verifying payment with Paystack:", error);
+        // If verification fails, we continue with the existing status, just log the error.
+      }
+    }
+
+    // Return the order with its current status (including payment status)
+    return res.status(200).json({
+      success: true,
+      order: {
+        _id: order._id,
+        orderId: order.orderId,
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        totalAmount: order.totalAmount,
+        items: order.items,
+        // Include other fields you want to return
+      },
+    });
+  } catch (error) {
+    console.error("Error checking order status and verifying payment:", error);
+    next(error); // Pass error to error handling middleware
   }
 };

@@ -91,7 +91,6 @@ export class ZodValidationException extends BadRequestException {
     const fieldName = firstError?.path?.join(".") || "field"; // Use the path to create a field name
     const errorMessage = firstError?.message || "Validation error"; // Use the message from the error, or a default one
 
-    // Call the parent constructor to set the error message and other details
     super(errorMessage, ErrorCodeEnum.VALIDATION_ERROR, zodError);
 
     // Additional custom formatting for the response
@@ -103,9 +102,3 @@ export class ZodValidationException extends BadRequestException {
     };
   }
 }
-
-// export class ZodValidationException extends BadRequestException {
-//   constructor(zodError: ZodError) {
-//     super("Validation error", ErrorCodeEnum.VALIDATION_ERROR, zodError); // Pass ZodError details
-//   }
-// }

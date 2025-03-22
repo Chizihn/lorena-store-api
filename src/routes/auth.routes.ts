@@ -5,7 +5,6 @@ import {
 } from "../middlewares/asyncHandler.middleware";
 import {
   createAccountHandler,
-  fetchUserByToken,
   forgotPasswordHandler,
   googleAuthCallback,
   googleLoginHandler,
@@ -15,7 +14,6 @@ import {
   resetPasswordHandler,
   verifyEmailHandler,
 } from "../controllers/auth.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = express.Router();
 

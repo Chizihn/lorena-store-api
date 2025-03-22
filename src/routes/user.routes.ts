@@ -9,6 +9,8 @@ import {
 } from "../middlewares/asyncHandler.middleware";
 import {
   fetchUserProfile,
+  getUser,
+  getUsers,
   updateProfileHandler,
 } from "../controllers/user.controller";
 
@@ -22,5 +24,9 @@ userRoutes.put(
 );
 
 userRoutes.get("/users/me", authMiddleware, asyncAuthHandler(fetchUserProfile));
+
+userRoutes.get("/users", adminMiddleware, asyncAuthHandler(getUsers));
+
+userRoutes.get("/users/:id", adminMiddleware, asyncAuthHandler(getUser));
 
 export default userRoutes;

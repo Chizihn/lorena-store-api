@@ -64,16 +64,15 @@ export const getCart = async (
 
     const totalAmount = cart.items.reduce((sum, item) => {
       const product = item.product;
-      console.log("product", product); // This should now log correctly
+      console.log("product", product);
 
       const price = product.discountedPrice || product.originalPrice;
-      console.log("price", price); // This should now log correctly
+      console.log("price", price);
 
-      // Accumulate the total
       return sum + price * item.quantity;
     }, 0);
 
-    console.log("totalAmount", totalAmount); // This should now log correctly
+    console.log("totalAmount", totalAmount);
 
     return res
       .status(200)

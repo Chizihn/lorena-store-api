@@ -146,6 +146,65 @@ export const addProduct = async (
   }
 };
 
+export const updateProduct = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { productId } = req.params;
+
+    const validatedData = ProductSchema.parse(req.body);
+
+    const product = await ProductModel.findById(productId);
+
+    if (!product) {
+      throw new NotFoundException(
+        "Product not found",
+        ErrorCodeEnum.PRODUCT_NOT_FOUND
+      );
+    }
+
+    Object.assign(product, validatedData);
+
+    await product.save();
+
+    return res.status(HTTPSTATUS.OK).json({
+      success: true,
+      message: "Product updated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteProduct = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { productId } = req.params;
+
+    // Find and delete the product by its ID
+    const deletedProduct = await ProductModel.findByIdAndDelete(productId);
+
+    if (!deletedProduct) {
+      throw new NotFoundException(
+        "Product not found",
+        ErrorCodeEnum.PRODUCT_NOT_FOUND
+      );
+    }
+
+    return res.status(HTTPSTATUS.OK).json({
+      success: true,
+      message: "Product deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getWishlist = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -201,65 +260,6 @@ export const getWishlist = async (
     next(error);
   }
 };
-
-// export const addToWishList = async (
-//   req: AuthenticatedRequest,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   const userId = req.user?._id;
-//   const productId = req.params.id;
-
-//   try {
-//     // Find user first
-//     const user = await UserModel.findById(userId);
-//     if (!user) {
-//       throw new NotFoundException(
-//         "User does not exist",
-//         ErrorCodeEnum.AUTH_USER_NOT_FOUND
-//       );
-//     }
-
-//     // Find or create wishlist - make sure to use userId consistently
-//     let wishlist = await WishlistModel.findOneAndUpdate(
-//       { userId: userId }, // Changed from user to userId to match schema
-//       { userId: userId }, // Changed from user to userId to match schema
-//       { upsert: true, new: true, setDefaultsOnInsert: true }
-//     );
-
-//     let wishlistId;
-
-//     wishlistId = new Types.ObjectId(wishlist._id as string);
-
-//     // Update user with wishlist reference if needed
-//     if (!user.wishlist || !user.wishlist.equals(wishlistId)) {
-//       user.wishlist = wishlist._id as Types.ObjectId;
-//       await user.save();
-//     }
-
-//     const productObjectId = new Types.ObjectId(productId);
-
-//     // Check if product already exists in wishlist
-//     const productExists = wishlist.products.some((id) =>
-//       id.equals(productObjectId)
-//     );
-//     if (productExists) {
-//       return res.status(HTTPSTATUS.BAD_REQUEST).json({
-//         message: "Product is already in the wishlist",
-//       });
-//     }
-
-//     // Add product to wishlist
-//     wishlist.products.push(productObjectId);
-//     await wishlist.save();
-
-//     res.status(HTTPSTATUS.OK).json({
-//       message: "Product added to wishlist",
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
 
 export const addToWishList = async (
   req: AuthenticatedRequest,
@@ -384,38 +384,3 @@ export const removeFromWishList = async (
     next(error);
   }
 };
-
-// {
-//     "name": "Awesome Wireless Headphones",
-//     "slug": "awesome-wireless-headphones",
-//     "image": "https://example.com/images/headphones.jpg",
-//     "additionalImages": [
-//       "https://example.com/images/headphones-1.jpg",
-//       "https://example.com/images/headphones-2.jpg"
-//     ],
-//     "category": "67d1d1c93ad2455870dc5756",,  // Replace with a valid Category ObjectId
-//     "subcategory": "603d2c3f8a4b3d3e7d5c78c4",  // Replace with a valid Subcategory ObjectId (optional)
-//     "originalPrice": 99.99,
-//     "discountedPrice": 79.99,
-//     "rating": 4.5,
-//     "discountPercentage": 20,
-//     "description": "These are premium wireless headphones with noise-cancelling technology and long-lasting battery life.",
-//     "shortDescription": "Premium wireless headphones with noise-cancelling and great battery life.",
-//     "stock": 50,
-//     "isProductNew": true,
-//     "isFeatured": true,
-//     "isOnSale": true,
-//     "colors": ["BLACK", "RED", "BLUE"],  // Valid ColorEnum values
-//     "sizes": ["M", "L", "XL"],  // Valid SizeEnum values
-//     "reviewCount": 150,
-//     "tags": ["electronics", "headphones", "wireless"],
-//     "slug": "awesome-wireless-headphones"  // Optional: You can leave this out, and it will be generated automatically if needed
-//   }
-
-// export const updateProduct = async (req: Request, res: Response) => {
-//     const validatedData =
-//     }
-
-// export const deleteProduct = async (req: Request, res: Response) => {
-//         const validatedData =
-//         }

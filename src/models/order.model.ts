@@ -36,6 +36,7 @@ export interface OrderDocument extends Document {
   trackingNumber?: string;
   paystackReference?: string;
   paymentAttempts: number;
+  isConfirmed: boolean;
 }
 
 const orderSchema = new Schema<OrderDocument>(
@@ -95,6 +96,10 @@ const orderSchema = new Schema<OrderDocument>(
     },
     paymentAttempts: {
       type: Number,
+    },
+    isConfirmed: {
+      type: Boolean,
+      default: false,
     },
   },
   {

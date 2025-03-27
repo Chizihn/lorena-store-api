@@ -280,6 +280,7 @@ export const checkout = async (
 
   try {
     const {
+      formData,
       orderId,
       shippingAddress,
       billingAddress,
@@ -337,10 +338,7 @@ export const checkout = async (
       });
     }
 
-    // Reset order status if previous attempt was unsuccessful
-    // Reset order status if payment is pending
     if (order.paymentStatus === PaymentStatusEnum.PENDING) {
-      // Reset order status to DRAFT and paymentStatus to PENDING to allow retry
       order.orderStatus = OrderStatusEnum.DRAFT;
       order.paymentStatus = PaymentStatusEnum.PENDING;
       order.paymentMethod = null;
@@ -376,6 +374,8 @@ export const checkout = async (
     if (!user.addresses.some((addr) => addr.street === billingAddress.street)) {
       user.addresses.push(billingAddress);
     }
+
+    Object.assign(user, formData);
 
     // Save updated user with new addresses
     await user.save();
@@ -724,6 +724,7 @@ export const checkOrderStatusAndVerifyPayment = async (
         ) {
           order.paymentStatus = PaymentStatusEnum.PAID;
           order.orderStatus = OrderStatusEnum.PROCESSING;
+          order.isConfirmed = true;
 
           await order.save();
 
@@ -743,15 +744,7 @@ export const checkOrderStatusAndVerifyPayment = async (
     // Return the order with its current status (including payment status)
     return res.status(200).json({
       success: true,
-      order: {
-        _id: order._id,
-        orderId: order.orderId,
-        orderStatus: order.orderStatus,
-        paymentStatus: order.paymentStatus,
-        totalAmount: order.totalAmount,
-        items: order.items,
-        // Include other fields you want to return
-      },
+      order: order,
     });
   } catch (error) {
     console.error("Error checking order status and verifying payment:", error);

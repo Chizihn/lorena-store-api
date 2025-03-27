@@ -3,7 +3,7 @@ import { z } from "zod";
 // Login Schema
 export const LoginSchema = z.object({
   email: z.string().email("Invalid email address").trim(),
-  password: z.string().min(6, "Password must have a min of 6 characters"),
+  password: z.string(),
 });
 
 // Create Account Schema

@@ -9,6 +9,7 @@ interface EmailOptions {
 
 export const sendEmail = async (options: EmailOptions) => {
   const transporter = nodemailer.createTransport({
+    service: "gmail",
     host: config.SMTP.HOST,
     port: Number(config.SMTP.PORT),
     auth: {

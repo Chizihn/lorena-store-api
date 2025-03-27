@@ -16,6 +16,7 @@ import UserModel from "../models/user.model";
 import crypto from "crypto";
 import { NotFoundException } from "../utils/appError";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
+import { generateTrackingNumber } from "../utils/uuid";
 
 // Function for fetching orders only
 export const getOrders = async (
@@ -717,6 +718,8 @@ export const checkOrderStatusAndVerifyPayment = async (
 
         const paymentData = verificationResponse.data.data;
 
+        const trackingNumber = generateTrackingNumber();
+
         // If payment was successful, update the order
         if (
           verificationResponse.data.status &&
@@ -725,6 +728,7 @@ export const checkOrderStatusAndVerifyPayment = async (
           order.paymentStatus = PaymentStatusEnum.PAID;
           order.orderStatus = OrderStatusEnum.PROCESSING;
           order.isConfirmed = true;
+          order.trackingNumber = trackingNumber;
 
           await order.save();
 

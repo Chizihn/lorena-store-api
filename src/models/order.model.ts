@@ -89,6 +89,7 @@ const orderSchema = new Schema<OrderDocument>(
     },
     trackingNumber: {
       type: String,
+      unique: true,
     },
     paystackReference: {
       type: String,

@@ -25,6 +25,11 @@ export const ForgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
+export const VerifyResetTokenSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  token: z.string().max(6),
+});
+
 // Reset Password Schema
 export const ResetPasswordSchema = z.object({
   token: z

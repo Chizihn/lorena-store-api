@@ -33,7 +33,7 @@ export interface OrderDocument extends Document {
   paymentStatus: PaymentStatusEnumType | null;
   orderStatus: OrderStatusEnumType | null;
   notes?: string;
-  trackingNumber?: string;
+  trackingNumber?: string | null;
   paystackReference?: string;
   paymentAttempts: number;
   isConfirmed: boolean;
@@ -90,6 +90,7 @@ const orderSchema = new Schema<OrderDocument>(
     trackingNumber: {
       type: String,
       unique: true,
+      default: null,
     },
     paystackReference: {
       type: String,

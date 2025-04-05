@@ -1,5 +1,6 @@
 import { NextFunction, Response, Request } from "express";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../types/custom.type";
+
 import jwt from "jsonwebtoken";
 import { HTTPSTATUS } from "../config/http.config";
 import { config } from "../config/app.config";

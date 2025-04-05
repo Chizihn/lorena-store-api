@@ -2,7 +2,7 @@ import { NextFunction, Response } from "express";
 import {
   AuthenticatedRequest,
   VerifyPaymentRequest,
-} from "../@types/custom.type";
+} from "../types/custom.type";
 import OrderModel, {
   OrderItemDocument,
   PaymentMethodEnum,
@@ -14,9 +14,8 @@ import CartModel from "../models/cart.model";
 import { config } from "../config/app.config";
 import UserModel from "../models/user.model";
 import crypto from "crypto";
-import { NotFoundException } from "../utils/appError";
-import { ErrorCodeEnum } from "../enums/error-code.enum";
 import { generateTrackingNumber } from "../utils/uuid";
+import { checkoutSchema } from "../validators/order.validator";
 
 // Function for fetching orders only
 export const getOrders = async (
@@ -280,6 +279,8 @@ export const checkout = async (
   console.log("userid", userId);
 
   try {
+    const validatedData = checkoutSchema.parse(req.body);
+
     const {
       formData,
       orderId,
@@ -288,7 +289,17 @@ export const checkout = async (
       paymentMethod,
       email,
       notes,
-    } = req.body;
+    } = validatedData;
+
+    console.log("check data", {
+      formData,
+      orderId,
+      shippingAddress,
+      billingAddress,
+      paymentMethod,
+      email,
+      notes,
+    });
 
     // Validate payment method
     if (!Object.values(PaymentMethodEnum).includes(paymentMethod)) {
@@ -518,163 +529,6 @@ export const paystackWebhook = async (
   } catch (error) {
     next(error);
     return res.status(200).send("Webhook received");
-  }
-};
-
-export const checkOrderStatus = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.user?._id;
-    const { orderId } = req.params;
-
-    // Find the order for this user
-    const order = await OrderModel.findOne({ _id: orderId, userId });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: "Order not found",
-      });
-    }
-
-    // If payment is still pending and we have a reference, check Paystack
-    if (
-      order.paymentStatus === PaymentStatusEnum.PENDING &&
-      order.paystackReference
-    ) {
-      try {
-        // Verify the payment with Paystack
-        const verificationResponse = await axios.get(
-          `https://api.paystack.co/transaction/verify/${order.paystackReference}`,
-          {
-            headers: {
-              Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
-            },
-          }
-        );
-
-        const paymentData = verificationResponse.data.data;
-
-        // Update order if payment was successful
-        if (
-          verificationResponse.data.status &&
-          paymentData.status === "success"
-        ) {
-          order.paymentStatus = PaymentStatusEnum.PAID;
-          order.orderStatus = OrderStatusEnum.PROCESSING;
-          await order.save();
-
-          // Update product inventory
-          for (const item of order.items) {
-            await ProductModel.findByIdAndUpdate(item.product, {
-              $inc: { stock: -item.quantity },
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Error verifying payment with Paystack:", error);
-        // Don't fail the request, just continue with the current order status
-      }
-    }
-
-    // Return the order with its current status
-    return res.status(200).json({
-      success: true,
-      order: {
-        _id: order._id,
-        orderId: order.orderId,
-        orderStatus: order.orderStatus,
-        paymentStatus: order.paymentStatus,
-        totalAmount: order.totalAmount,
-        items: order.items,
-        // Include other fields you want to return
-      },
-    });
-  } catch (error) {
-    console.error("Error checking order status:", error);
-    next(error);
-  }
-};
-
-export const verifyPayment = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const userId = req.user?._id;
-    const reference = req.params?.id;
-
-    console.log("Reference:", reference);
-
-    if (!reference) {
-      return res.status(400).json({
-        success: false,
-        error: "Reference parameter is required",
-      });
-    }
-
-    // Verify the payment with Paystack
-    const verificationResponse = await axios.get(
-      `https://api.paystack.co/transaction/verify/${reference}`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
-        },
-      }
-    );
-
-    // console.log("Verification Response:", verificationResponse);
-
-    const paymentData = verificationResponse.data.data;
-
-    if (verificationResponse.data.status && paymentData.status === "success") {
-      // Payment was successful
-      const orderId = paymentData.metadata.orderId;
-
-      // Fetch the order using the orderId
-      const order = await OrderModel.findOne({ _id: orderId, userId });
-
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          error: "Order not found",
-        });
-      }
-
-      // Update order status to paid
-      order.paymentStatus = PaymentStatusEnum.PAID;
-      order.orderStatus = OrderStatusEnum.PROCESSING;
-
-      await order.save();
-
-      // Update product inventory based on the order items
-      for (const item of order.items) {
-        await ProductModel.findByIdAndUpdate(item.product, {
-          $inc: { stock: -item.quantity },
-        });
-      }
-
-      // Return success status and the order ID
-      return res.status(200).json({
-        success: true,
-        message: "Payment verified successfully",
-        orderId: orderId,
-      });
-    } else {
-      // Payment failed
-      return res.status(400).json({
-        success: false,
-        message: "Payment verification failed",
-        reference: reference,
-      });
-    }
-  } catch (error) {
-    console.error("Error verifying payment:", error);
-    next(error);
   }
 };
 

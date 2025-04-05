@@ -5,14 +5,12 @@ import {
   asyncHandler,
 } from "../middlewares/asyncHandler.middleware";
 import {
-  checkOrderStatus,
   checkOrderStatusAndVerifyPayment,
   checkout,
   createOrder,
   getOrders,
   getSingleOrder,
   paystackWebhook,
-  verifyPayment,
 } from "../controllers/order.controller";
 
 const orderRoutes = express.Router();

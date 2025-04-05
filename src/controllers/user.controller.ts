@@ -9,9 +9,11 @@ import { HTTPSTATUS } from "../config/http.config";
 import UserModel from "../models/user.model";
 
 import { ErrorCodeEnum } from "../enums/error-code.enum";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../types/custom.type";
+
 import { ZodError } from "zod";
 import AccountModel from "../models/account.model";
+import { RolesEnum } from "../enums/roles.enum";
 
 export const updateProfileHandler = async (
   req: AuthenticatedRequest,
@@ -26,7 +28,6 @@ export const updateProfileHandler = async (
     const userId = req.user?._id;
 
     // If user ID is not available, respond with unauthorized error
-
     if (!userId) {
       throw new UnauthorizedException(
         "User not authenticated",
@@ -34,25 +35,20 @@ export const updateProfileHandler = async (
       );
     }
 
-    // Find the user by ID
-    const user = await UserModel.findById(userId);
+    // Find the user by ID and update directly in the database
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId, // The user's ID
+      validatedData, // The data to update
+      { new: true } // Return the updated document (not the original)
+    );
 
     // If the user is not found, return a not found error
-    if (!user) {
+    if (!updatedUser) {
       throw new NotFoundException(
         "No user found",
         ErrorCodeEnum.AUTH_USER_NOT_FOUND
       );
     }
-
-    // Log the validated data to check what is being updated
-    console.log("Validated data:", validatedData);
-
-    // Update the user object with the new data
-    Object.assign(user, validatedData);
-
-    // Save the updated user profile
-    await user.save();
 
     // Return success response
     return res.status(HTTPSTATUS.OK).json({
@@ -93,7 +89,7 @@ export const fetchUserProfile = async (
 
     // Combine the information
     const userProfile = {
-      ...user.toObject(), // Convert Mongoose document to plain object
+      ...user.toObject(),
       providerInfo: accountInfo ? accountInfo.toObject() : null,
     };
 
@@ -109,7 +105,9 @@ export const getUsers = async (
   next: NextFunction
 ) => {
   try {
-    const users = await UserModel.find();
+    const users = await UserModel.find({
+      role: { $nin: [RolesEnum.ADMIN, RolesEnum.MANAGER] },
+    });
 
     if (!users) {
       throw new NotFoundException(

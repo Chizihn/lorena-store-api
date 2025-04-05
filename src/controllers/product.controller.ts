@@ -7,7 +7,8 @@ import { ProductSchema } from "../validators/product.validator";
 import Category from "../models/category.model";
 import Subcategory from "../models/subcategory.model";
 import UserModel from "../models/user.model";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../types/custom.type";
+
 import { Types } from "mongoose";
 import WishlistModel from "../models/wishlist.model";
 

@@ -1,6 +1,7 @@
 import { NextFunction, Response } from "express";
 import CartModel, { CartItemDocument } from "../models/cart.model";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../types/custom.type";
+
 import { HTTPSTATUS } from "../config/http.config";
 import ProductModel from "../models/product.model";
 

@@ -10,6 +10,8 @@ export const errorHandler: ErrorRequestHandler = (
 ): any => {
   console.log(`Error occurred on PATH ${req.path}`);
 
+  console.log("the error", error);
+
   // Handle JSON parse errors
   if (error instanceof SyntaxError) {
     return res.status(HTTPSTATUS.BAD_REQUEST).json({

@@ -7,15 +7,17 @@ import {
 } from "../utils/appError";
 import {
   CreateAccountSchema,
+  ForgotPasswordSchema,
   LoginSchema,
   ResetPasswordSchema,
   VerifyEmailSchema,
+  VerifyResetTokenSchema,
 } from "../validators/auth.validator";
 import { HTTPSTATUS } from "../config/http.config";
 import UserModel from "../models/user.model";
 import {
-  generateEmailVerificationToken,
-  generateAuthToken,
+  generateEmailVerificationOtp,
+  generateOtp,
   generateToken,
 } from "../utils/token";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
@@ -28,7 +30,7 @@ import { OAuth2Client } from "google-auth-library";
 import { config } from "../config/app.config";
 import passport from "passport";
 import { UserDocument } from "../interfaces/user.interface";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../types/custom.type";
 
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
 
@@ -52,7 +54,7 @@ export const createAccountHandler = async (
       );
     }
 
-    const verificationToken = generateEmailVerificationToken();
+    const verificationToken = generateEmailVerificationOtp();
     const emailVerifyTokenExpires = new Date();
     emailVerifyTokenExpires.setHours(emailVerifyTokenExpires.getHours() + 1);
 
@@ -91,11 +93,6 @@ export const createAccountHandler = async (
       user: userProfile,
     });
   } catch (error) {
-    if (error instanceof ZodError) {
-      next(new ZodValidationException(error));
-      return;
-    }
-
     next(error);
   }
 };
@@ -139,18 +136,13 @@ export const loginHandler = async (
       });
     }
 
-    const account = await AccountModel.findOne({
-      providerId: validatedData.email,
-      provider: ProviderEnum.EMAIL,
-    });
-
     //generate token for user
     const token = generateToken(existingUser._id as string, res);
     console.log("token", token);
 
     const userProfile = {
       ...existingUser.toObject(),
-      providerInfo: account ? account.toObject() : null,
+      providerInfo: existingAccount ? existingAccount.toObject() : null,
     };
 
     return res.status(200).json({
@@ -445,7 +437,7 @@ export const resendVerifyEmailToken = async (
 
       if (new Date() > emailVerificationTokenExpires) {
         // If the token has expired, generate a new one
-        const newToken = generateEmailVerificationToken();
+        const newToken = generateEmailVerificationOtp();
         const newExpirationDate = new Date();
         newExpirationDate.setHours(newExpirationDate.getHours() + 1); // Token expires in 1 hour
 
@@ -484,7 +476,7 @@ export const resendVerifyEmailToken = async (
       }
     } else {
       // If no token exists, generate a new one
-      const newToken = generateEmailVerificationToken();
+      const newToken = generateEmailVerificationOtp();
       const newExpirationDate = new Date();
       newExpirationDate.setHours(newExpirationDate.getHours() + 1); // Token expires in 1 hour
 
@@ -516,130 +508,13 @@ export const resendVerifyEmailToken = async (
   }
 };
 
-// export const forgotPasswordHandler = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   const { email } = req.body;
-
-//   try {
-//     if (!email) {
-//       throw new BadRequestException(
-//         "Email is required!",
-//         ErrorCodeEnum.VALIDATION_ERROR
-//       );
-//     }
-
-//     const user = await UserModel.findOne({ email: email });
-//     console.log("forgot 4");
-
-//     if (!user) {
-//       return res.status(HTTPSTATUS.NOT_FOUND).json({
-//         message: ErrorCodeEnum.AUTH_USER_NOT_FOUND,
-//       });
-//     }
-
-//     const passwordResetTokenValue = generateAuthToken();
-//     console.log("Token value", passwordResetTokenValue);
-
-//     Object.assign(user, {
-//       ...user,
-//       passwordResetToken: passwordResetTokenValue,
-//     });
-
-//     await user.save();
-
-//     await sendEmail({
-//       to: user.email,
-//       subject: "Verify your password ret",
-//       text: `Please reset your password with this token. ${passwordResetTokenValue}`,
-//     });
-
-//     return res
-//       .status(HTTPSTATUS.OK)
-//       .json({ message: "Forgot password success. Sent token" });
-//   } catch (error) {
-//     // Handle Zod validation errors
-//     if (error instanceof ZodError) {
-//       next(new ZodValidationException(error));
-//       return;
-//     }
-
-//     next(error);
-//   }
-// };
-
-// export const resetPasswordHandler = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const validateData = ResetPasswordSchema.parse(req.body);
-
-//     const { email, token, newPassword } = validateData;
-
-//     // Find the user by email
-//     const user = await UserModel.findOne({ email });
-
-//     if (!user) {
-//       throw new NotFoundException("User not found!", ErrorCodeEnum.NOT_FOUND);
-//     }
-
-//     // Check if the token matches and is valid
-//     if (user.passwordResetToken !== token) {
-//       throw new BadRequestException(
-//         "Invalid verification token!",
-//         ErrorCodeEnum.VALIDATION_ERROR
-//       );
-//     }
-
-//     // Check if token has expired
-//     const passwordResetTokenExpires = user.passwordResetTokenExpires as Date;
-//     const expirationWithGracePeriod = new Date(
-//       passwordResetTokenExpires?.getTime() + 10 * 60 * 1000
-//     );
-
-//     if (new Date() > expirationWithGracePeriod) {
-//       throw new BadRequestException(
-//         "Password reset token has expired!",
-//         ErrorCodeEnum.AUTH_TOKEN_NOT_FOUND
-//       );
-//     }
-
-//     // Hash the new password
-//     const hashedPassword = await hashValue(newPassword);
-
-//     // Update user with new password and clear the reset token
-//     Object.assign(user, {
-//       password: hashedPassword,
-//       passwordResetToken: null,
-//       passwordResetTokenExpires: null,
-//     });
-
-//     await user.save();
-
-//     return res
-//       .status(HTTPSTATUS.OK)
-//       .json({ message: "Password reset successfully!" });
-//   } catch (error) {
-//     // Handle Zod validation errors
-//     if (error instanceof ZodError) {
-//       next(new ZodValidationException(error));
-//       return;
-//     }
-
-//     next(error);
-//   }
-// };
-
 export const forgotPasswordHandler = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { email } = req.body;
+  const validatedData = ForgotPasswordSchema.parse(req.body);
+  const { email } = validatedData;
 
   try {
     if (!email) {
@@ -658,7 +533,7 @@ export const forgotPasswordHandler = async (
       });
     }
 
-    const passwordResetTokenValue = generateAuthToken();
+    const passwordResetTokenValue = generateOtp();
     console.log("Token value", passwordResetTokenValue);
 
     // Save the reset token and set expiration date (optional, could be added if needed)
@@ -693,7 +568,8 @@ export const verifyResetTokenHandler = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { email, token } = req.body;
+  const validatedData = VerifyResetTokenSchema.parse(req.body);
+  const { email, token } = validatedData;
 
   try {
     if (!email || !token) {
@@ -824,7 +700,7 @@ export const resendResetPasswordToken = async (
 
       if (new Date() > passwordResetTokenExpires) {
         // If the token has expired, generate a new one
-        const newToken = generateAuthToken();
+        const newToken = generateOtp();
         const newExpirationDate = new Date();
         newExpirationDate.setHours(newExpirationDate.getHours() + 1); // Token expires in 1 hour
 
@@ -861,7 +737,7 @@ export const resendResetPasswordToken = async (
       }
     } else {
       // If no token exists, generate a new one
-      const newToken = generateAuthToken();
+      const newToken = generateOtp();
       const newExpirationDate = new Date();
       newExpirationDate.setHours(newExpirationDate.getHours() + 1); // Token expires in 1 hour
 

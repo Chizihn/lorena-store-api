@@ -11,6 +11,7 @@ import subcategoryRoutes from "./routes/subcategory.routes";
 import userRoutes from "./routes/user.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
+import statRoutes from "./routes/stat.routes";
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -41,6 +42,7 @@ app.use(`${BASE_PATH}`, productRoutes);
 app.use(`${BASE_PATH}`, categoryRoutes);
 app.use(`${BASE_PATH}`, subcategoryRoutes);
 app.use(`${BASE_PATH}`, userRoutes);
+app.use(`${BASE_PATH}`, statRoutes);
 
 app.get("/", (req: Request, res: Response, next: NextFunction) => {
   res.send("Hello World!");

@@ -17,7 +17,7 @@
 //   };
 
 import { NextFunction, Request, Response } from "express";
-import { AuthenticatedRequest } from "../@types/custom.type";
+import { AuthenticatedRequest } from "../types/custom.type";
 
 type AsyncControllerType = (
   req: Request,

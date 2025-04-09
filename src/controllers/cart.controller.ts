@@ -3,39 +3,7 @@ import CartModel, { CartItemDocument } from "../models/cart.model";
 import { AuthenticatedRequest } from "../types/custom.type";
 
 import { HTTPSTATUS } from "../config/http.config";
-import ProductModel from "../models/product.model";
 
-//   req: AuthenticatedRequest,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const userId = req.user?._id;
-
-//     // Find the cart and populate the product details in items.productId
-//     const cart = await CartModel.findOne({ userId })
-//       .populate("items.product")
-//       .lean(); // Use .lean() to get a plain JavaScript object
-
-//     // Check if the cart exists and if the cart has items
-//     if (!cart) {
-//       return res.status(200).json({ message: "No cart found for this user" });
-//     }
-
-//     // If the cart exists but has no items, send a response accordingly
-//     if (cart.items.length === 0) {
-//       return res.status(200).json({ message: "Cart is empty" });
-//     }
-
-//     // If the cart has items, return the cart with product details
-//     // In your getCart controller
-//     return res.status(200).json({ items: cart.items });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// The getCart function retrieves the cart details for a user, including product information and total price.
 export const getCart = async (
   req: AuthenticatedRequest,
   res: Response,

@@ -22,7 +22,7 @@ import {
 } from "../utils/token";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
 import { compareValue, hashValue } from "../utils/bcrypt";
-import { sendEmail } from "../utils/sendEmail";
+import { sendEmail } from "../utils/email";
 import { ZodError } from "zod";
 import AccountModel from "../models/account.model";
 import { ProviderEnum } from "../enums/account-provider.enum";
@@ -352,6 +352,61 @@ export const unlinkGoogleAccount = async (
   }
 };
 
+// export const verifyEmailHandler = async (
+//   req: AuthenticatedRequest,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const userId = req.user?._id;
+
+//     const validatedData = VerifyEmailSchema.parse(req.body);
+
+//     const user = await UserModel.findOne({
+//       emailVerificationToken: validatedData.token,
+//       _id: userId,
+//     });
+
+//     if (!user) {
+//       return res.status(400).json({ message: "Invalid verification token" });
+//     }
+
+//     const emailVerificationToken = user.emailVerificationToken;
+//     const emailVerificationTokenExpires =
+//       user.emailVerificationTokenExpires as Date;
+
+//     if (!emailVerificationToken) {
+//       return res.status(HTTPSTATUS.BAD_REQUEST).json({
+//         message: "Invalid request. No token found!",
+//       });
+//     }
+
+//     const expirationWithGracePeriod = new Date(
+//       emailVerificationTokenExpires?.getTime() + 10 * 60 * 1000
+//     );
+
+//     if (new Date() > expirationWithGracePeriod) {
+//       user.emailVerificationToken = null;
+//       user.emailVerificationTokenExpires = null;
+
+//       return res.status(HTTPSTATUS.BAD_REQUEST).json({
+//         message: "Verification token has expired request for a new token!",
+//       });
+//     }
+
+//     user.emailVerified = true;
+//     user.emailVerificationToken = null;
+//     user.emailVerificationTokenExpires = null;
+
+//     await user.save();
+//     return res
+//       .status(HTTPSTATUS.OK)
+//       .json({ message: "Email verified successfully" });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const verifyEmailHandler = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -364,7 +419,7 @@ export const verifyEmailHandler = async (
 
     const user = await UserModel.findOne({
       emailVerificationToken: validatedData.token,
-      userId,
+      _id: userId,
     });
 
     if (!user) {
@@ -386,28 +441,39 @@ export const verifyEmailHandler = async (
     );
 
     if (new Date() > expirationWithGracePeriod) {
-      user.emailVerificationToken = null;
-      user.emailVerificationTokenExpires = null;
+      // Reset the token and its expiration in the database
+      await UserModel.findOneAndUpdate(
+        { _id: userId },
+        {
+          $set: {
+            emailVerificationToken: null,
+            emailVerificationTokenExpires: null,
+          },
+        }
+      );
 
       return res.status(HTTPSTATUS.BAD_REQUEST).json({
-        message: "Verification token has expired request for a new token!",
+        message: "Verification token has expired. Request a new token!",
       });
     }
 
-    user.emailVerified = true;
-    user.emailVerificationToken = null;
-    user.emailVerificationTokenExpires = null;
+    // Perform the update using findOneAndUpdate
+    await UserModel.findOneAndUpdate(
+      { _id: userId },
+      {
+        $set: {
+          emailVerified: true,
+          emailVerificationToken: null,
+          emailVerificationTokenExpires: null,
+        },
+      },
+      { new: true } // This option ensures the updated user is returned
+    );
 
-    await user.save();
     return res
       .status(HTTPSTATUS.OK)
       .json({ message: "Email verified successfully" });
   } catch (error) {
-    if (error instanceof ZodError) {
-      next(new ZodValidationException(error));
-      return;
-    }
-
     next(error);
   }
 };

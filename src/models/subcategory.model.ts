@@ -1,10 +1,10 @@
-import mongoose, { Document } from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
+import { Schema } from "mongoose";
 
-export interface Subcategory extends Document {
+export interface SubcategoryDocument extends Document {
   name: string;
   description?: string | null;
-  parent?: mongoose.Types.ObjectId;
-  image?: string;
+  parent?: Types.ObjectId;
   slug: string;
 }
 
@@ -14,7 +14,7 @@ const SubcategorySchema = new mongoose.Schema(
     description: { type: String, default: null },
     slug: { type: String, required: true, unique: true },
     parent: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Category",
       required: true,
     },

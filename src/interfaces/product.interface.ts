@@ -1,6 +1,5 @@
 import { Document, Types } from "mongoose";
-import { CategoryDocument } from "../models/category.model";
-import { Subcategory } from "../models/subcategory.model";
+import { SubcategoryDocument } from "../models/subcategory.model";
 
 export interface ProductDocument extends Document {
   id: string;
@@ -8,7 +7,7 @@ export interface ProductDocument extends Document {
   image: string;
   additionalImages: string[];
   category: Types.ObjectId;
-  subcategory: Subcategory;
+  subcategory: SubcategoryDocument;
   originalPrice: number;
   discountedPrice: number;
   rating: number;

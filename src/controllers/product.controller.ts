@@ -5,14 +5,13 @@ import { ErrorCodeEnum } from "../enums/error-code.enum";
 import ProductModel from "../models/product.model";
 import { ProductSchema } from "../validators/product.validator";
 import Category from "../models/category.model";
-import Subcategory from "../models/subcategory.model";
 import UserModel from "../models/user.model";
 import { AuthenticatedRequest } from "../types/custom.type";
-
 import { Types } from "mongoose";
 import WishlistModel from "../models/wishlist.model";
+import Subcategory from "../models/subcategory.model";
 
-export const getAllProducts = async (
+export const getProducts = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -30,7 +29,6 @@ export const getAllProducts = async (
 
     return res.status(HTTPSTATUS.OK).json(products); // Send the populated products back to the client
   } catch (error) {
-    console.error(error); // Log the error for debugging purposes
     next(error); // Pass the error to the next middleware
   }
 };

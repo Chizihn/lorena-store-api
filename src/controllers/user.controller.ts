@@ -27,7 +27,6 @@ export const updateProfileHandler = async (
     // Get the user ID from the authenticated request
     const userId = req.user?._id;
 
-    // If user ID is not available, respond with unauthorized error
     if (!userId) {
       throw new UnauthorizedException(
         "User not authenticated",
@@ -35,14 +34,12 @@ export const updateProfileHandler = async (
       );
     }
 
-    // Find the user by ID and update directly in the database
     const updatedUser = await UserModel.findByIdAndUpdate(
-      userId, // The user's ID
-      validatedData, // The data to update
-      { new: true } // Return the updated document (not the original)
+      userId,
+      validatedData,
+      { new: true }
     );
 
-    // If the user is not found, return a not found error
     if (!updatedUser) {
       throw new NotFoundException(
         "No user found",
@@ -84,7 +81,6 @@ export const fetchUserProfile = async (
       );
     }
 
-    // Find the account/provider info associated with this user
     const accountInfo = await AccountModel.findOne({ userId: userId });
 
     // Combine the information

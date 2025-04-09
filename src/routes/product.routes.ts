@@ -7,7 +7,7 @@ import {
   addProduct,
   addToWishList,
   deleteProduct,
-  getAllProducts,
+  getProducts,
   getProductBySlug,
   getSingleProduct,
   getWishlist,
@@ -21,7 +21,7 @@ import {
 
 const productRoutes = express.Router();
 
-productRoutes.get("/products", asyncHandler(getAllProducts));
+productRoutes.get("/products", asyncHandler(getProducts));
 
 productRoutes.get("/products/:slug", asyncHandler(getProductBySlug));
 

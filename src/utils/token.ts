@@ -4,7 +4,7 @@ import { config } from "../config/app.config";
 import UserModel from "../models/user.model";
 import { BadRequestException } from "./appError";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
-import { sendEmail } from "./sendEmail";
+import { sendEmail } from "./email";
 import { HTTPSTATUS } from "../config/http.config";
 
 export const generateToken = (userId: string, res: Response) => {

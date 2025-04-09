@@ -6,7 +6,7 @@ export interface WishlistDocument extends Document {
   products: Types.ObjectId[];
 }
 
-const walletSchema = new Schema(
+const wishlistSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User" },
     products: [{ type: Schema.Types.ObjectId, ref: "Product" }],
@@ -35,7 +35,7 @@ const walletSchema = new Schema(
 
 const WishlistModel = mongoose.model<WishlistDocument>(
   "Wishlist",
-  walletSchema
+  wishlistSchema
 );
 
 export default WishlistModel;

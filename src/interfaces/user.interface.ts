@@ -52,13 +52,15 @@ export interface UserDocument extends Document {
   passwordResetToken: string;
   passwordResetTokenExpires: Date | null;
   orders: OrderDocument[];
-  cart: CartDocument | null;
+  cart?: CartDocument | null;
   paymentMethods: PaymentMethod[];
   preferences: UserPreferences;
   status: UserStatusEnumType;
   recentSearches: RecentSearch[];
-  wallet: WalletDocument;
+  wallet?: WalletDocument;
   createWallet: () => Promise<void>;
   comparePassword: (value: string) => Promise<boolean>;
   omitPassword(): Omit<UserDocument, "password">;
+  createdAt: Date;
+  updatedAt: Date;
 }

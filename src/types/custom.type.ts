@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { UserDocument } from "../interfaces/user.interface";
 import { ParsedQs } from "qs";
+import { Types } from "mongoose";
 
 interface Query extends ParsedQs {
   orderId?: string; // specify expected query parameters
@@ -8,7 +9,21 @@ interface Query extends ParsedQs {
   reference?: string;
 }
 export interface AuthenticatedRequest extends Request {
-  user?: UserDocument;
+  user?: Partial<UserDocument>;
+}
+
+export interface TestRequest extends Request {
+  user?: {
+    _id: Types.ObjectId;
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    phone: string;
+    dob: Date | null;
+    role: string[];
+  };
 }
 
 export interface CustomRequest extends Request {

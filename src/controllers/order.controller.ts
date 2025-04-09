@@ -120,62 +120,6 @@ export const getSingleOrder = async (
   }
 };
 
-// export const createOrder =  async (
-//     req: AuthenticatedRequest,
-//     res: Response,
-//     next: NextFunction
-//   ) =>  {
-//   const userId = req.user?._id;
-
-//       try {
-//         const {items, totalAmount} = req.body;
-
-//         const orders = await OrderModel.findOne({userId});
-
-//         if (!userId || !items || !Array.isArray(items) || items.length === 0) {
-//             return res.status(400).json({
-//               success: false,
-//               error: 'Invalid order data. Customer ID and at least one item required.'
-//             });
-//           }
-
-//           const orderItems: OrderItemDocument[] = []
-
-//        for (const item of items) {
-//         const product = await ProductModel.findById(item.product_id);
-
-//         if (!product) {
-//             return res.status(404).json({
-//               success: false,
-//               error: `Product with ID ${item.product._id} not found`
-//             });
-//           }
-
-//           if (product.stock < item.quantity) {
-//             return res.status(400).json({
-//               success: false,
-//               error: `Insufficient stock for product ${product.name}. Available: ${product.stock}`
-//             });
-//           }
-
-//     orderItems.push({
-//             product: product.id,
-//             quantity: item.quantity,
-//           });
-
-//        }
-
-//        const newOrder: OrderDocument = {
-//         ...orders,
-//         items: orderItems,
-//         totalAmount: totalAmount,
-//        }
-
-//       } catch (error) {
-//           next(error)
-//       }
-//   }
-
 export const createOrder = async (
   req: AuthenticatedRequest,
   res: Response,
